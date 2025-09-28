@@ -93,3 +93,27 @@ body.sunlit-animation-ready.dark {
 }
 
 // put your custom CSS here!
+
+// 首页专用样式 - 移除上方空白空间
+body[data-slug="index"] {
+  .page-header {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    
+    // 如果header完全为空，隐藏它
+    &:empty {
+      display: none;
+    }
+  }
+  
+  // 确保center区域紧贴顶部
+  #quartz-body .center {
+    margin-top: 0;
+    padding-top: 0;
+  }
+  
+  // 如果页面header区域没有内容，移除其网格区域的空间
+  #quartz-body {
+    grid-template-rows: auto 1fr auto;
+  }
+}
