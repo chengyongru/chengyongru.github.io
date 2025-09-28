@@ -70,7 +70,9 @@
       & > * {
         width: 100%;
         border-radius: 7px;
-        background: var(--light);
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
         box-shadow:
           0 14px 50px rgba(27, 33, 48, 0.12),
           0 10px 30px rgba(27, 33, 48, 0.16);
@@ -238,4 +240,10 @@
       }
     }
   }
+}
+
+// 深色模式下的搜索样式
+[data-theme="dark"] .search > .search-container > .search-space > *,
+.dark .search > .search-container > .search-space > * {
+  background: rgba(0, 0, 0, 0.8);
 }

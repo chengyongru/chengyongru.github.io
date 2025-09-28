@@ -1,3 +1,95 @@
 @use "./base.scss";
 
+// Sunlit background variables and styles
+:root {
+  --sunlit-day: rgb(249, 247, 244);
+  --sunlit-evening: #f0e6d2;
+  --sunlit-dusk: #d4b896;
+  --sunlit-night: #0f131c;
+  --sunlit-dawn: #16132b;
+  --sunlit-morning: #a8b5c0;
+  --sunlit-shadow: #1a1917;
+  --sunlit-bounce-light: #f2ead8;
+  --sunlit-timing-fn: cubic-bezier(0.455, 0.190, 0.000, 0.985);
+}
+
+[data-theme="dark"] {
+  --sunlit-shadow: #030307;
+  --sunlit-bounce-light: #1b293f;
+}
+
+// Sunlit background animations
+body {
+  animation-duration: 0s;
+  animation-fill-mode: forwards;
+  animation-timing-function: linear;
+  min-height: 100vh;
+}
+
+body.sunlit-animation-ready {
+  animation-play-state: running;
+  animation-duration: 1s;
+  animation-name: sunlit-sunrise;
+}
+
+body.sunlit-animation-ready.dark {
+  animation-duration: 1.7s;
+  animation-name: sunlit-sunset;
+}
+
+@keyframes sunlit-sunrise {
+  0% {
+    background-color: var(--sunlit-night);
+  }
+
+  10% {
+    background-color: var(--sunlit-dawn);
+  }
+
+  35% {
+    background-color: var(--sunlit-morning);
+  }
+
+  100% {
+    background-color: var(--sunlit-day);
+  }
+}
+
+@keyframes sunlit-sunset {
+  0% {
+    background-color: var(--sunlit-day);
+  }
+
+  30% {
+    background-color: var(--sunlit-evening);
+  }
+
+  60% {
+    background-color: var(--sunlit-dusk);
+  }
+
+  90% {
+    background-color: var(--sunlit-dawn);
+  }
+
+  100% {
+    background-color: var(--sunlit-night);
+  }
+}
+
+// 确保页面容器不会遮挡背景
+.page {
+  z-index: 1;
+}
+
+// 调整内容区域的透明度，让背景更好地显示
+#quartz-body {
+  background-color: transparent;
+}
+
+// 确保侧边栏的粘性定位正常工作
+.sidebar {
+  position: sticky !important;
+}
+
 // put your custom CSS here!
