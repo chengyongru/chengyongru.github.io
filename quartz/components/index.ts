@@ -16,7 +16,6 @@ import Graph from "./Graph"
 import Backlinks from "./Backlinks"
 import Search from "./Search"
 import Footer from "./Footer"
-import CustomFooter from "./CustomFooter"
 import DesktopOnly from "./DesktopOnly"
 import MobileOnly from "./MobileOnly"
 import RecentNotes from "./RecentNotes"
@@ -24,7 +23,6 @@ import Breadcrumbs from "./Breadcrumbs"
 import Comments from "./Comments"
 import Flex from "./Flex"
 import ConditionalRender from "./ConditionalRender"
-import SunlitBackground from "./SunlitBackground"
 
 export {
   ArticleTitle,
@@ -44,7 +42,6 @@ export {
   Backlinks,
   Search,
   Footer,
-  CustomFooter,
   DesktopOnly,
   MobileOnly,
   RecentNotes,
@@ -53,5 +50,4 @@ export {
   Comments,
   Flex,
   ConditionalRender,
-  SunlitBackground,
 }
