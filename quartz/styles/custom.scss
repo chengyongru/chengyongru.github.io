@@ -94,6 +94,13 @@ body.sunlit-animation-ready.dark {
 
 // put your custom CSS here!
 
+// 图片居中样式
+img.img-centered {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 // 首页专用样式 - 移除上方空白空间
 body[data-slug="index"] {
   .page-header {

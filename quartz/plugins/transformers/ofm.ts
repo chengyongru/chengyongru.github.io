@@ -147,6 +147,8 @@ const videoExtensionRegex = new RegExp(/\.(mp4|webm|ogg|avi|mov|flv|wmv|mkv|mpg|
 const wikilinkImageEmbedRegex = new RegExp(
   /^(?<alt>(?!^\d*x?\d*$).*?)?(\|?\s*?(?<width>\d+)(x(?<height>\d+))?)?$/,
 )
+// Regex to parse standard markdown image alt text with size: ![alt text|width](url)
+const markdownImageSizeRegex = new RegExp(/^(?<alt>.*?)\|(?<width>\d+)(x(?<height>\d+))?$/)
 
 export const ObsidianFlavoredMarkdown: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
   const opts = { ...defaultOptions, ...userOpts }
@@ -655,6 +657,32 @@ export const ObsidianFlavoredMarkdown: QuartzTransformerPlugin<Partial<Options>>
           }
         })
       }
+
+      // Handle standard markdown image size syntax: ![alt text|width](url)
+      plugins.push(() => {
+        return (tree: HtmlRoot) => {
+          visit(tree, "element", (node) => {
+            if (node.tagName === "img" && typeof node.properties.alt === "string") {
+              const altText = node.properties.alt
+              const match = markdownImageSizeRegex.exec(altText)
+              if (match?.groups) {
+                const alt = match.groups.alt.trim()
+                const width = match.groups.width
+                const height = match.groups.height
+                
+                node.properties.alt = alt
+                if (width) {
+                  node.properties.width = width
+                  node.properties.className = "img-centered"
+                }
+                if (height) {
+                  node.properties.height = height
+                }
+              }
+            }
+          })
+        }
+      })
 
       if (opts.enableCheckbox) {
         plugins.push(() => {
