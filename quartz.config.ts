@@ -14,9 +14,9 @@ const config: QuartzConfig = {
     analytics: {
       provider: "plausible",
     },
-    locale: "en-US",
+    locale: "zh-CN",
     baseUrl: "chengyongru.github.io",
-    ignorePatterns: ["private", "templates"],
+    ignorePatterns: ["private", "templates", "_obsidian"],
     defaultDateType: "created",
     theme: {
       fontOrigin: "googleFonts",
@@ -90,7 +90,7 @@ const config: QuartzConfig = {
       Plugin.Favicon(),
       Plugin.NotFoundPage(),
       // // Comment out CustomOgImages to speed up build time
-    //   Plugin.CustomOgImages(),
+      Plugin.CustomOgImages(),
     ],
   },
 }
