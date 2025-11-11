@@ -7,13 +7,13 @@ const recentNotes = [
     title: "Recent Writing",
     limit: 4,
     filter: (f) =>
-      f.slug!.startsWith("notebook/") && f.slug! !== "notebook/index" && !f.frontmatter?.noindex,
+      f.slug!.startsWith("notebook/") && f.slug! !== "notebook/index" && !f.frontmatter?.noindex && !f.frontmatter?.tags?.includes("todo"),
     linkToMore: "notebook/" as SimpleSlug,
   }),
   Component.RecentNotes({
     title: "Recent Notes",
     limit: 2,
-    filter: (f) => f.slug!.startsWith("diary/"),
+    filter: (f) => f.slug!.startsWith("diary/") && !!(f.text && f.text.trim() !== ""),
     linkToMore: "diary/" as SimpleSlug,
   }),
 ]

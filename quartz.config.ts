@@ -16,7 +16,7 @@ const config: QuartzConfig = {
     },
     locale: "zh-CN",
     baseUrl: "chengyongru.github.io",
-    ignorePatterns: ["private", "templates", "_obsidian"],
+    ignorePatterns: ["private", "templates", "_obsidian", "copilot"],
     defaultDateType: "created",
     theme: {
       fontOrigin: "googleFonts",
