@@ -16,7 +16,7 @@ const config: QuartzConfig = {
     },
     locale: "zh-CN",
     baseUrl: "chengyongru.github.io",
-    ignorePatterns: ["private", "templates", "_obsidian", "copilot"],
+    ignorePatterns: ["private", "templates", "_obsidian", "**/CLAUDE.md", "Clippings"],
     defaultDateType: "created",
     theme: {
       fontOrigin: "googleFonts",
@@ -67,7 +67,7 @@ const config: QuartzConfig = {
       Plugin.ObsidianFlavoredMarkdown({
         enableInHtmlEmbed: false,
         parseTags: false,
-        mermaid: false,
+        mermaid: true,
       }),
       Plugin.GitHubFlavoredMarkdown(),
       Plugin.TableOfContents(),
