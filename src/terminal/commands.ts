@@ -367,19 +367,37 @@ function cmdABOUT(ctx: CommandContext): void {
 
 // ---- neofetch ----
 function cmdNEOFETCH(ctx: CommandContext): void {
-  const asciiArt = `
-        <span style="color:var(--green)">.-.-.</span>   <span style="color:var(--overlay)">-----------------------------</span>
-        <span style="color:var(--green)">/ o o \\</span>  <span style="color:var(--peach)">OS:</span>       ChengYongruOS v4.0
-        <span style="color:var(--green)">\\  ^  /</span>  <span style="color:var(--peach)">Host:</span>     Digital Garden
-        <span style="color:var(--green)">\`-/-'</span>   <span style="color:var(--peach)">Kernel:</span>   Astro + Preact
-        <span style="color:var(--green)"> |  |</span>    <span style="color:var(--peach)">Shell:</span>    Terminal UI
-        <span style="color:var(--green)">|_|_|</span>    <span style="color:var(--peach)">Editor:</span>   VS Code + Obsidian
-                  <span style="color:var(--peach)">Languages:</span> Python, C++, TypeScript
-                  <span style="color:var(--peach)">Focus:</span>    ML, Security, Reverse Engineering
-                  <span style="color:var(--peach)">Uptime:</span>   Since 2025
-                  <span style="color:var(--peach)">Theme:</span>    Catppuccin Mocha`;
+  const theme = (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) || 'catppuccin';
+  const themeLabels: Record<string, string> = {
+    catppuccin: 'Catppuccin Mocha', dracula: 'Dracula',
+    gruvbox: 'Gruvbox Dark', solarized: 'Solarized Dark',
+  };
 
-  ctx.output(`<pre style="line-height:1.4;font-size:13px;">${asciiArt}</pre>`);
+  const items = [
+    ['OS', 'ChengYongruOS v4.0'],
+    ['Host', 'Digital Garden'],
+    ['Kernel', 'Astro + Preact'],
+    ['Shell', 'Terminal UI'],
+    ['Editor', 'VS Code + Obsidian'],
+    ['Languages', 'Python, C++, TypeScript'],
+    ['Focus', 'ML, Security, Reverse Engineering'],
+    ['Uptime', 'Since 2025'],
+    ['Theme', themeLabels[theme] || theme],
+  ];
+
+  const rows = items
+    .map(([k, v]) => `<span style="color:var(--green)">${k.padEnd(10)}</span><span style="color:var(--subtext)">${v}</span>`)
+    .join('\n');
+
+  ctx.output(
+    `<div style="font-size:13px;font-family:'JetBrains Mono',monospace;line-height:1.7;">
+      <div style="margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--surface1);">
+        <span style="font-size:18px;font-weight:800;letter-spacing:2px;"><span style="color:var(--green)">CYR</span><span style="color:var(--surface2)">.</span><span style="color:var(--mauve)">ML</span></span>
+        <span style="margin-left:8px;color:var(--subtext);font-size:12px;">sysinfo</span>
+      </div>
+      <pre style="margin:0;color:var(--text);">${rows}</pre>
+    </div>`
+  );
 }
 
 // ---- whoami ----

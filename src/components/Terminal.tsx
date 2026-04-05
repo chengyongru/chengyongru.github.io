@@ -22,15 +22,15 @@ interface ViewerState {
 
 // Boot sequence
 const BANNER = [
-  ' <span style="color:var(--green)">  ██████╗██╗      █████╗ ███████╗██████╗ ███████╗██╗  ██╗</span>',
-  ' <span style="color:var(--green)"> ██╔════╝██║     ██╔══██╗██╔════╝██╔══██╗██╔════╝██║  ██║</span>',
-  ' <span style="color:var(--green)"> ██║     ██║     ███████║█████╗  ██████╔╝███████╗███████║</span>',
-  ' <span style="color:var(--green)"> ██║     ██║     ██╔══██║██╔══╝  ██╔══██╗╚════██║██╔══██║</span>',
-  ' <span style="color:var(--green)"> ╚██████╗███████╗██║  ██║███████╗██║  ██║███████║██║  ██║</span>',
-  ' <span style="color:var(--green)">  ╚═════╝╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝</span>',
-  '',
-  ' Welcome to ChengYongru\'s digital workspace.',
-  ' Type <span style="color:var(--yellow)">\'help\'</span> for commands, or just click anything you see.',
+  `<div style="margin:4px 0 6px;font-family:'JetBrains Mono',monospace;">
+    <div style="font-size:20px;font-weight:800;letter-spacing:2px;line-height:1.3;">
+      <span style="color:var(--green)">CYR</span><span style="color:var(--surface2)">.</span><span style="color:var(--mauve)">ML</span>
+      <span style="font-size:12px;font-weight:400;color:var(--subtext);margin-left:8px;letter-spacing:0.5px;"><a href="mailto:chengyongru.ai@gmail.com" style="color:var(--subtext);text-decoration:none;">chengyongru.ai@gmail.com</a></span>
+    </div>
+    <div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--surface1);font-size:13px;color:var(--overlay);">
+      Type <span style="color:var(--yellow)">'help'</span> for commands, or click anything to explore.
+    </div>
+  </div>`,
   '',
 ];
 
@@ -111,7 +111,7 @@ export default function Terminal() {
             typedLines.push({ html: BANNER[idx] });
             setLines([...typedLines]);
             idx++;
-            const delay = idx <= 6 ? 50 : 80; // ASCII art lines faster
+            const delay = 80;
             setTimeout(animate, delay);
           } else {
             localStorage.setItem('terminal-booted', '1');
@@ -398,7 +398,7 @@ export default function Terminal() {
         const files = listDir(resolvedDir) || [];
         candidates = files
           .filter(f => f.name.toLowerCase().startsWith(filePrefix))
-          .map(f => dirPart + f.name + (f.type === 'dir' ? '/' : ''));
+          .map(f => dirPart + f.name + (f.type === 'dir' && !f.name.endsWith('/') ? '/' : ''));
       }
 
       if (candidates.length === 0) { setTabCycle(null); setTabOptions([]); return; }
