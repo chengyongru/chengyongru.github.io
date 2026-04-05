@@ -36,6 +36,7 @@ const BANNER = [
 const MIN_W = 480;
 const MIN_H = 360;
 const DEFAULT_WIN = { w: 960, h: 600 };
+const MAX_LINES = 500;
 
 function longestCommonPrefix(strs: string[]): string {
   if (strs.length < 2) return strs[0] || '';
@@ -226,7 +227,10 @@ export default function Terminal() {
   }, []);
 
   const output = useCallback((html: string) => {
-    setLines(prev => [...prev, { html }]);
+    setLines(prev => {
+      const next = [...prev, { html }];
+      return next.length > MAX_LINES ? next.slice(next.length - MAX_LINES) : next;
+    });
     scrollToBottom();
   }, [scrollToBottom]);
 

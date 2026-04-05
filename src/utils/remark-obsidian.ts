@@ -1,4 +1,5 @@
 import { visit } from 'unist-util-visit';
+import type { Root, Parent } from 'mdast';
 
 /**
  * Remark plugin: unified Obsidian syntax transformations.
@@ -22,8 +23,6 @@ const CALLOUT_ICONS: Record<string, string> = {
 /**
  * Slugify to match Astro's generateId in content.config.ts:
  * decodeURIComponent → remove .md → lowercase → spaces→hyphens → remove double quotes
- * Note: generateId does NOT replace spaces with hyphens, but the content filenames
- * themselves don't contain spaces (they use hyphens), so this is safe in practice.
  */
 function slugify(name: string): string {
   return decodeURIComponent(name)
@@ -34,12 +33,11 @@ function slugify(name: string): string {
 }
 
 export function remarkObsidian() {
-  return (tree: any) => {
+  return (tree: Root) => {
     // 1. Remove %%comments%%
-    // Collect indices to remove, then splice in reverse to avoid index shifts
-    const toRemove: Array<{ parent: any; index: number }> = [];
+    const toRemove: Array<{ parent: Parent; index: number }> = [];
 
-    visit(tree, 'html', (node: any, index: number | undefined, parent: any) => {
+    visit(tree, 'html', (node, index, parent) => {
       if (index === undefined || !parent) return;
       node.value = node.value.replace(/%%[\s\S]*?%%/g, '');
       if (!node.value.trim()) {
@@ -47,7 +45,7 @@ export function remarkObsidian() {
       }
     });
 
-    visit(tree, 'text', (node: any, index: number | undefined, parent: any) => {
+    visit(tree, 'text', (node, index, parent) => {
       if (index === undefined || !parent) return;
       node.value = node.value.replace(/%%[\s\S]*?%%/g, '');
       if (!node.value) {
@@ -60,10 +58,10 @@ export function remarkObsidian() {
       parent.children.splice(index, 1);
     });
 
-    // 2. ==highlights== → <mark> (single-pass with direct splice)
-    const highlightReplacements: Array<{ parent: any; index: number; nodes: any[] }> = [];
+    // 2. ==highlights== → <mark>
+    const highlightReplacements: Array<{ parent: Parent; index: number; nodes: any[] }> = [];
 
-    visit(tree, 'text', (node: any, index: number | undefined, parent: any) => {
+    visit(tree, 'text', (node, index, parent) => {
       if (index === undefined || !parent) return;
       if (typeof node.value !== 'string') return;
 
@@ -95,14 +93,12 @@ export function remarkObsidian() {
       }
     });
 
-    // Apply replacements in reverse order to preserve indices
     highlightReplacements.reverse().forEach(({ parent, index, nodes }) => {
       parent.children.splice(index, 1, ...nodes);
     });
 
     // 3. Transform > [!type] callout blockquotes
-    // Supports: > [!type] (default), > [!type]+ (expanded), > [!type]- (collapsed)
-    visit(tree, 'blockquote', (node: any) => {
+    visit(tree, 'blockquote', (node) => {
       const firstChild = node.children?.[0];
       if (!firstChild || firstChild.type !== 'paragraph') return;
 
@@ -132,8 +128,7 @@ export function remarkObsidian() {
       node.data = node.data || {};
       node.data.hProperties = { 'data-callout': calloutType };
 
-      // Rebuild children: title paragraph + optional body paragraphs
-      const titleEl: any = {
+      const titleEl = {
         type: 'paragraph',
         children: [{ type: 'text', value: `${icon} ${titleText}` }],
         data: { hProperties: { 'data-callout-title': '' } },
@@ -145,12 +140,10 @@ export function remarkObsidian() {
         : otherChildren;
 
       if (isFoldable) {
-        // Wrap in <details>/<summary> for collapsible callouts
-        const summaryEl: any = {
+        const summaryEl = {
           type: 'html',
           value: `<summary>${icon} ${titleText}</summary>`,
         };
-        // Insert opening/closing details tags
         node.children = [
           { type: 'html', value: `<details${defaultOpen ? ' open' : ''}>` },
           summaryEl,
@@ -164,7 +157,7 @@ export function remarkObsidian() {
     });
 
     // 4. Rewrite internal .md links → /blog/{slug}/
-    visit(tree, 'link', (node: any) => {
+    visit(tree, 'link', (node) => {
       const href: string = node.url || '';
       if (!href.endsWith('.md') && !/\.md#/.test(href)) return;
       if (href.startsWith('http') || href.startsWith('/') || href.startsWith('data:')) return;

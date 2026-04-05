@@ -114,7 +114,7 @@ export function getPostUrl(slug: string): string {
   return `/blog/${slug}/`;
 }
 
-/** Fetch a blog page and extract the article HTML (header/footer stripped for viewer) */
+/** Fetch a blog post's content by extracting the article from the rendered page */
 export async function fetchPostContent(slug: string): Promise<{ title: string; html: string } | null> {
   const url = getPostUrl(slug);
   try {

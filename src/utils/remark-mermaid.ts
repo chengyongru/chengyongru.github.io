@@ -1,4 +1,5 @@
 import { visit } from 'unist-util-visit';
+import type { Root, Code, Parent } from 'mdast';
 
 /**
  * Remark plugin: converts ```mermaid code blocks into
@@ -7,12 +8,11 @@ import { visit } from 'unist-util-visit';
  * 2. The mermaid library can render them client-side
  */
 export function remarkMermaid() {
-  return (tree: any) => {
-    visit(tree, 'code', (node: any, index: number | undefined, parent: any) => {
+  return (tree: Root) => {
+    visit(tree, 'code', (node: Code, index: number | undefined, parent: Parent | undefined) => {
       if (index === undefined || !parent) return;
       if (node.lang !== 'mermaid') return;
 
-      // Replace the code node with a raw HTML node
       parent.children[index] = {
         type: 'html',
         value: `<pre class="mermaid">${node.value}</pre>`,

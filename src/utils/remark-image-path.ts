@@ -1,4 +1,5 @@
 import { visit } from 'unist-util-visit';
+import type { Root, Image, Parent } from 'mdast';
 
 function escAttr(str: string): string {
   return str
@@ -14,8 +15,8 @@ function escAttr(str: string): string {
  * which can't handle complex SVGs (e.g. draw.io exports).
  */
 export function remarkImagePath() {
-  return (tree: any) => {
-    visit(tree, 'image', (node: any, index: number | undefined, parent: any) => {
+  return (tree: Root) => {
+    visit(tree, 'image', (node: Image, index: number | undefined, parent: Parent | undefined) => {
       const url: string = node.url || '';
 
       // Skip external URLs and data URIs
