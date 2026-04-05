@@ -31,6 +31,11 @@ jobs:
         run: npm ci
       - name: Create img symlink
         run: mkdir -p public && ln -s ../content/img public/img
+      - name: Debug content-assets
+        run: |
+          npx astro sync 2>&1 || true
+          echo "=== .astro/content-assets.mjs ==="
+          cat .astro/content-assets.mjs 2>/dev/null || echo "File not found"
       - name: Build Astro site
         run: npm run build
       - name: Upload artifact
