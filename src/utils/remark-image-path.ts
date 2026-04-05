@@ -14,11 +14,12 @@ export function remarkImagePath() {
       if (url.startsWith('http') || url.startsWith('data:')) return;
 
       // Convert /img/ images to raw <img> HTML to bypass Astro asset pipeline
-      if (url.startsWith('/img/') && index !== undefined && parent) {
+      if ((url.startsWith('/img/') || url.startsWith('img/')) && index !== undefined && parent) {
+        const src = url.startsWith('/') ? url : `/${url}`;
         const alt = node.alt || '';
         parent.children[index] = {
           type: 'html',
-          value: `<img src="${url}" alt="${alt}" />`,
+          value: `<img src="${src}" alt="${alt}" />`,
         };
         return;
       }

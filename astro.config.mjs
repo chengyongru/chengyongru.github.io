@@ -47,6 +47,25 @@ export default defineConfig({
         'img': path.resolve(__dirname, 'public/img'),
       },
     },
+    plugins: [
+      {
+        name: 'bypass-svg-metadata',
+        enforce: 'pre',
+        async resolveId(id, importer) {
+          if (id.includes('astroContentImageFlag') && id.includes('.svg')) {
+            // Let Astro resolve the file path, then return a no-op module
+            return null;
+          }
+        },
+        async load(id) {
+          if (id.includes('astroContentImageFlag') && id.endsWith('.svg')) {
+            // Return a module that exports the raw file path instead of processed metadata
+            const filePath = id.split('?')[0];
+            return `export default { src: "${filePath}", fsPath: "${filePath}" };`;
+          }
+        },
+      },
+    ],
     ssr: {
       noExternal: ['katex'],
     },
