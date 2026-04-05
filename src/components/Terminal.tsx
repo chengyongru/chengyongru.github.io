@@ -37,6 +37,18 @@ const BANNER = [
 const MIN_W = 480;
 const MIN_H = 360;
 
+function longestCommonPrefix(strs: string[]): string {
+  if (strs.length < 2) return strs[0] || '';
+  let i = 0;
+  while (true) {
+    const ch = strs[0][i];
+    if (ch === undefined) break;
+    if (!strs.every(s => s[i] === ch)) break;
+    i++;
+  }
+  return strs[0].slice(0, i);
+}
+
 export default function Terminal() {
   const [cwd, setCwd] = useState('/');
   const [lines, setLines] = useState<OutputLine[]>([]);
@@ -46,6 +58,7 @@ export default function Terminal() {
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const [ready, setReady] = useState(false);
   const [tabOptions, setTabOptions] = useState<string[]>([]);
+  const [tabCycle, setTabCycle] = useState<{matches: string[]; idx: number; base: string} | null>(null);
 
   // Window management
   const [winPos, setWinPos] = useState({ x: 0, y: 0 });
@@ -241,6 +254,9 @@ export default function Terminal() {
         const doc = parser.parseFromString(html, 'text/html');
         const article = doc.querySelector('article');
         if (article) {
+          // Strip blog page header/footer — viewer has its own title bar
+          article.querySelector('.post-header')?.remove();
+          article.querySelector('.post-footer')?.remove();
           openViewer(article.querySelector('h1')?.textContent || slug, article.innerHTML);
         }
       })
@@ -328,6 +344,7 @@ export default function Terminal() {
     setInput('');
     setHistoryIndex(-1);
     setTabOptions([]);
+    setTabCycle(null);
   }, [cwd, output, appendInputLine, openViewer, getCurrentFiles, history, handleClear]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -363,36 +380,67 @@ export default function Terminal() {
 
     if (e.key === 'Tab') {
       e.preventDefault();
-      // Tab completion
       const parts = input.split(' ');
-      if (parts.length <= 1) {
-        // Complete command names
-        const prefix = parts[0].toLowerCase();
-        const matches = getAllCommands().filter(c => c.startsWith(prefix));
-        if (matches.length === 1) {
-          setInput(matches[0] + ' ');
-        } else if (matches.length > 1) {
-          setTabOptions(matches);
-        }
+      const isCmd = parts.length <= 1;
+      const word = isCmd ? parts[0] : parts[parts.length - 1];
+      const lword = word.toLowerCase();
+
+      let candidates: string[];
+
+      if (isCmd) {
+        candidates = getAllCommands().filter(c => c.startsWith(lword));
       } else {
-        // Complete file names
-        const prefix = parts[parts.length - 1].toLowerCase();
-        const files = getCurrentFiles();
-        const matches = files.filter(f => f.name.toLowerCase().startsWith(prefix));
-        if (matches.length === 1) {
-          parts[parts.length - 1] = matches[0].name;
-          setInput(parts.join(' '));
-        } else if (matches.length > 1) {
-          setTabOptions(matches.map(f => f.name));
+        // Path-aware file completion
+        const lastSlash = word.lastIndexOf('/');
+        const dirPart = lastSlash >= 0 ? word.substring(0, lastSlash + 1) : '';
+        const filePrefix = word.substring(lastSlash + 1).toLowerCase();
+        const resolvedDir = dirPart ? resolvePath(cwd, dirPart) : cwd;
+        const files = listDir(resolvedDir) || [];
+        candidates = files
+          .filter(f => f.name.toLowerCase().startsWith(filePrefix))
+          .map(f => dirPart + f.name + (f.type === 'dir' ? '/' : ''));
+      }
+
+      if (candidates.length === 0) { setTabCycle(null); setTabOptions([]); return; }
+
+      if (candidates.length === 1) {
+        if (isCmd) setInput(candidates[0] + ' ');
+        else { parts[parts.length - 1] = candidates[0]; setInput(parts.join(' ')); }
+        setTabCycle(null); setTabOptions([]);
+        return;
+      }
+
+      // Multiple candidates — cycling Tab completion
+      const dir = e.shiftKey ? -1 : 1;
+
+      if (tabCycle && lword.startsWith(tabCycle.base)) {
+        // Continue cycling through matches
+        const next = tabCycle.idx === -1
+          ? (dir === 1 ? 0 : candidates.length - 1)
+          : (tabCycle.idx + dir + candidates.length) % candidates.length;
+        const picked = candidates[next];
+        if (isCmd) setInput(picked + ' ');
+        else { parts[parts.length - 1] = picked; setInput(parts.join(' ')); }
+        setTabCycle({ matches: candidates, idx: next, base: tabCycle.base });
+        setTabOptions(candidates);
+      } else {
+        // First Tab: extend to common prefix, show options
+        const common = longestCommonPrefix(candidates);
+        if (common.length > lword.length) {
+          if (isCmd) setInput(common);
+          else { parts[parts.length - 1] = common; setInput(parts.join(' ')); }
         }
+        setTabCycle({ matches: candidates, idx: -1, base: lword });
+        setTabOptions(candidates);
       }
       return;
     }
 
     if (e.key === 'Escape') {
       setTabOptions([]);
+      setTabCycle(null);
     }
-  }, [input, history, historyIndex, handleCommand, getCurrentFiles]);
+  }, [input, history, historyIndex, handleCommand, getCurrentFiles, cwd]);
 
   // Update cwd from command context
   const handleSetCwd = useCallback((newCwd: string) => {

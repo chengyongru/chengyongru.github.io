@@ -159,7 +159,7 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
           <span class="viewer-close" onClick={onClose}>[q]</span>
         </div>
         <div
-          class="viewer-body"
+          class="viewer-body prose"
           ref={bodyRef}
           dangerouslySetInnerHTML={{ __html: html }}
         />

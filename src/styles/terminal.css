@@ -186,6 +186,12 @@
   padding: 24px;
 }
 
+.viewer-body.prose {
+  max-width: none;
+  margin: 0;
+  padding: 32px 40px;
+}
+
 .viewer-hint {
   color: var(--overlay);
   font-size: 12px;

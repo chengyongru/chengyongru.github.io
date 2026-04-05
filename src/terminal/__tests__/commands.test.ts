@@ -6,6 +6,7 @@ import type { FileEntry, ContentIndex } from '../types';
 const mockFS: Record<string, FileEntry[] | undefined> = {};
 const mockIndex: ContentIndex = {
   posts: [
+    { slug: 'index', title: 'About', date: '2025-01-01', tags: ['about'], reading_time: 2 },
     { slug: 'notebook/ARIMA', title: 'ARIMA Model', date: '2025-01-15', tags: ['ML', 'time-series'], reading_time: 5 },
     { slug: 'diary/2025-10-11', title: 'Diary Entry', date: '2025-10-11', tags: ['diary'], reading_time: 3 },
     { slug: 'notebook/Dropout', title: 'Dropout Techniques', date: '2025-02-20', tags: ['ML', 'deep-learning'], reading_time: 8 },
@@ -22,13 +23,16 @@ vi.mock('../file-tree', () => ({
   getAllTags: vi.fn(() => mockIndex.tags),
   resolvePath: vi.fn((cwd: string, target: string) => {
     if (target === '~' || target === '') return '/';
-    if (target === '..') {
-      const parts = cwd.replace(/\/$/, '').split('/').filter(Boolean);
-      parts.pop();
-      return '/' + parts.join('/') || '/';
-    }
     if (target.startsWith('/')) return target;
-    return cwd.replace(/\/$/, '') + '/' + target;
+    const joined = cwd.replace(/\/$/, '') + '/' + target.replace(/^\//, '');
+    const parts = joined.split('/').filter(Boolean);
+    const resolved: string[] = [];
+    for (const part of parts) {
+      if (part === '..') resolved.pop();
+      else if (part !== '.') resolved.push(part);
+    }
+    const path = '/' + resolved.join('/') || '/';
+    return target.endsWith('/') ? path + '/' : path;
   }),
   getPostUrl: vi.fn((slug: string) => `/blog/${slug}/`),
   loadFileSystem: vi.fn(),
@@ -184,6 +188,22 @@ describe('cmdCAT', () => {
     ctx.cwd = '/';
     executeCommand('cat ARIMA', ctx);
     // Fuzzy match finds notebook/ARIMA via slug substring
+    expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining('Loading'));
+  });
+
+  it('should resolve relative path with .. (cat ../index.md from /notebook/)', () => {
+    const ctx = createMockCtx();
+    ctx.cwd = '/notebook/';
+    executeCommand('cat ../index.md', ctx);
+    // resolvePath(/notebook/, ../index) → /index → slug "index"
+    expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining('Loading'));
+  });
+
+  it('should resolve relative path with .. from root (cat ../notebook/ARIMA from /diary/)', () => {
+    const ctx = createMockCtx();
+    ctx.cwd = '/diary/';
+    executeCommand('cat ../notebook/ARIMA', ctx);
+    // resolvePath(/diary/, ../notebook/ARIMA) → /notebook/ARIMA
     expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining('Loading'));
   });
 });

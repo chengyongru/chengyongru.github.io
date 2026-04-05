@@ -73,8 +73,9 @@ const dateStr = post.data.date?.toISOString().split('T')[0] || '';
 
   .post-header h1 {
     color: var(--green);
-    font-size: 1.5em;
+    font-size: 1.6em;
     margin-bottom: 0.5em;
+    letter-spacing: -0.01em;
   }
 
   .post-meta {
@@ -96,11 +97,12 @@ const dateStr = post.data.date?.toISOString().split('T')[0] || '';
   }
 
   .tag-badge {
-    background: var(--surface);
-    color: var(--blue);
+    background: rgba(250, 179, 135, 0.1);
+    color: var(--peach);
     padding: 2px 8px;
     border-radius: 4px;
     font-size: 0.8em;
+    border: 1px solid rgba(250, 179, 135, 0.15);
   }
 
   .post-footer {

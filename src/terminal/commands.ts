@@ -106,12 +106,12 @@ function cmdLS(args: string[], ctx: CommandContext): void {
   let output = '';
   for (const f of pageFiles) {
     if (f.type === 'dir') {
-      output += `<div><span class="clickable-dir" data-action="cd" data-path="${targetDir}${f.name}">${esc(f.name)}</span>  <span style="color:var(--overlay)">${esc(f.desc || '')}</span></div>`;
+      output += `<div style="display:flex;gap:12px;"><span class="clickable-dir" data-action="cd" data-path="${targetDir}${f.name}" style="min-width:180px;display:inline-block;">${esc(f.name)}</span><span style="color:var(--overlay);flex:1;">${esc(f.desc || '')}</span></div>`;
     } else if (f.title) {
       const tagsHtml = f.tags ? f.tags.map(t => `<span style="background:var(--surface);color:var(--blue);padding:1px 6px;border-radius:3px;font-size:0.8em;">${esc(t)}</span>`).join(' ') : '';
-      output += `<div><span class="clickable-file" data-action="cat" data-slug="${f.slug || ''}">${esc(f.name)}</span>  <span style="color:var(--overlay)">${f.date || ''}</span> ${tagsHtml}</div>`;
+      output += `<div style="display:flex;gap:12px;align-items:baseline;"><span class="clickable-file" data-action="cat" data-slug="${f.slug || ''}" style="min-width:280px;display:inline-block;">${esc(f.name)}</span><span style="color:var(--overlay);min-width:90px;flex-shrink:0;">${f.date ? f.date.split('T')[0] : ''}</span><span>${tagsHtml}</span></div>`;
     } else {
-      output += `<div><span class="clickable-file" data-action="cat" data-slug="${f.slug || ''}">${esc(f.name)}</span>  <span style="color:var(--overlay)">${esc(f.desc || '')}</span></div>`;
+      output += `<div style="display:flex;gap:12px;"><span class="clickable-file" data-action="cat" data-slug="${f.slug || ''}" style="min-width:180px;display:inline-block;">${esc(f.name)}</span><span style="color:var(--overlay);flex:1;">${esc(f.desc || '')}</span></div>`;
     }
   }
 
@@ -166,27 +166,32 @@ function cmdCAT(args: string[], ctx: CommandContext): void {
   const filename = args[0];
   const posts = getAllPosts();
 
-  // Build candidate slugs to search:
-  // 1. Exact match (e.g., "notebook/ARIMA")
-  // 2. Cwd-prefixed (e.g., cwd="/notebook/" + "ARIMA" → "notebook/ARIMA")
-  // 3. Filename substring match (fallback)
-  const base = filename.replace(/\.md$/i, '').toLowerCase();
+  // Resolve path relative to cwd (handles ../ and ./)
+  const rawSlug = filename.replace(/\.md$/i, '');
+  const resolvedPath = resolvePath(ctx.cwd, rawSlug);
+  const resolvedSlug = resolvedPath.replace(/^\//, '').toLowerCase();
 
-  // Try exact slug match first
-  let post = posts.find(p => p.slug.toLowerCase() === base);
+  // 1. Try resolved path as exact slug (e.g., "../index" from /notebook/ → "index")
+  let post = posts.find(p => p.slug.toLowerCase() === resolvedSlug);
 
-  // Try prepending current directory context
+  // 2. Try without path resolution as exact slug (e.g., "notebook/ARIMA")
+  if (!post) {
+    const base = rawSlug.toLowerCase();
+    post = posts.find(p => p.slug.toLowerCase() === base);
+  }
+
+  // 3. Try cwd-prefixed (e.g., cwd="/notebook/" + "ARIMA" → "notebook/ARIMA")
   if (!post && ctx.cwd !== '/') {
     const cwdPrefix = ctx.cwd.replace(/^\//, '').replace(/\/$/, '').toLowerCase();
-    const fullSlug = cwdPrefix + '/' + base;
-    post = posts.find(p => p.slug.toLowerCase() === fullSlug);
+    post = posts.find(p => p.slug.toLowerCase() === cwdPrefix + '/' + rawSlug.toLowerCase());
   }
 
   // Fallback: fuzzy substring match on slug and title
   if (!post) {
+    const query = resolvedSlug || rawSlug.toLowerCase();
     const fuzzy = posts.filter(p =>
-      p.slug.toLowerCase().includes(base) ||
-      p.title.toLowerCase().includes(base),
+      p.slug.toLowerCase().includes(query) ||
+      p.title.toLowerCase().includes(query),
     );
 
     if (fuzzy.length === 1) {
@@ -217,6 +222,9 @@ function cmdCAT(args: string[], ctx: CommandContext): void {
       const doc = parser.parseFromString(html, 'text/html');
       const article = doc.querySelector('article');
       if (article) {
+        // Strip blog page header/footer — viewer has its own title bar
+        article.querySelector('.post-header')?.remove();
+        article.querySelector('.post-footer')?.remove();
         ctx.openViewer(post.title, article.innerHTML);
       } else {
         // Fallback: use body content

@@ -103,15 +103,21 @@ export function getAllTags(): string[] {
 
 export function resolvePath(cwd: string, target: string): string {
   if (target === '~' || target === '') return '/';
-  if (target === '..') {
-    const parts = cwd.replace(/\/$/, '').split('/').filter(Boolean);
-    parts.pop();
-    return '/' + parts.join('/') || '/';
-  }
   if (target.startsWith('/')) return target;
-  // Relative path — strip trailing slash from cwd to avoid double slashes
-  const base = cwd.replace(/\/$/, '');
-  return base + '/' + target;
+  // Join cwd + target, then normalize .. segments
+  const joined = cwd.replace(/\/$/, '') + '/' + target.replace(/^\//, '');
+  const parts = joined.split('/').filter(Boolean);
+  const resolved: string[] = [];
+  for (const part of parts) {
+    if (part === '..') {
+      resolved.pop();
+    } else if (part !== '.') {
+      resolved.push(part);
+    }
+  }
+  // Preserve trailing slash if target ended with one
+  const path = '/' + resolved.join('/') || '/';
+  return target.endsWith('/') && path !== '/' ? path + '/' : path;
 }
 
 export function getPostUrl(slug: string): string {
