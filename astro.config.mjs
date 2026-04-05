@@ -1,4 +1,4 @@
-import { defineConfig } from 'astro/config';
+import { defineConfig, passthroughImageService } from 'astro/config';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import preact from '@astrojs/preact';
@@ -25,7 +25,7 @@ export default defineConfig({
     sitemap(),
   ],
   image: {
-    dangerouslyAllowSVG: true,
+    service: passthroughImageService(),
   },
   markdown: {
     remarkPlugins: [
