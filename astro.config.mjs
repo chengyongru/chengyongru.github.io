@@ -24,6 +24,9 @@ export default defineConfig({
     }),
     sitemap(),
   ],
+  image: {
+    dangerouslyAllowSVG: true,
+  },
   markdown: {
     remarkPlugins: [
       remarkObsidianLinks,
