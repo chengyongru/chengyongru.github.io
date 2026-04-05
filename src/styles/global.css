@@ -165,7 +165,7 @@ html {
 
 /* ===== Selection ===== */
 ::selection {
-  background: rgba(137, 180, 250, 0.3);
+  background: color-mix(in srgb, var(--blue) 30%, transparent);
   color: var(--text);
 }
 

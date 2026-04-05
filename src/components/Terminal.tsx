@@ -3,11 +3,10 @@
 // Core terminal UI with command input, output, and history
 // ============================================================
 
-import { h } from 'preact';
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import ContentViewer from './ContentViewer';
 import { executeCommand, getPrompt, getAllCommands } from '../terminal/commands';
-import { loadFileSystem, listDir, getPostUrl, resolvePath } from '../terminal/file-tree';
+import { loadFileSystem, listDir, getPostUrl, resolvePath, fetchPostContent } from '../terminal/file-tree';
 import type { FileEntry } from '../terminal/types';
 
 interface OutputLine {
@@ -36,6 +35,7 @@ const BANNER = [
 
 const MIN_W = 480;
 const MIN_H = 360;
+const DEFAULT_WIN = { w: 960, h: 600 };
 
 function longestCommonPrefix(strs: string[]): string {
   if (strs.length < 2) return strs[0] || '';
@@ -57,12 +57,11 @@ export default function Terminal() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const [ready, setReady] = useState(false);
-  const [tabOptions, setTabOptions] = useState<string[]>([]);
   const [tabCycle, setTabCycle] = useState<{matches: string[]; idx: number; base: string} | null>(null);
 
   // Window management
   const [winPos, setWinPos] = useState({ x: 0, y: 0 });
-  const [winSize, setWinSize] = useState({ w: 960, h: 600 });
+  const [winSize, setWinSize] = useState({ ...DEFAULT_WIN });
   const [maximized, setMaximized] = useState(false);
 
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -75,13 +74,13 @@ export default function Terminal() {
     sl: number; st: number;
     dir: string;
   } | null>(null);
-  const preMaxRef = useRef({ pos: { x: 0, y: 0 }, size: { w: 960, h: 600 } });
+  const preMaxRef = useRef({ pos: { x: 0, y: 0 }, size: { ...DEFAULT_WIN } });
 
   // Center window on mount
   useEffect(() => {
     setWinPos({
-      x: Math.max(20, Math.round((window.innerWidth - 960) / 2)),
-      y: Math.max(20, Math.round((window.innerHeight - 600) / 2)),
+      x: Math.max(20, Math.round((window.innerWidth - DEFAULT_WIN.w) / 2)),
+      y: Math.max(20, Math.round((window.innerHeight - DEFAULT_WIN.h) / 2)),
     });
   }, []);
 
@@ -247,22 +246,13 @@ export default function Terminal() {
       return;
     }
     const slug = m[1];
-    fetch(getPostUrl(slug))
-      .then(res => res.text())
-      .then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const article = doc.querySelector('article');
-        if (article) {
-          // Strip blog page header/footer — viewer has its own title bar
-          article.querySelector('.post-header')?.remove();
-          article.querySelector('.post-footer')?.remove();
-          openViewer(article.querySelector('h1')?.textContent || slug, article.innerHTML);
-        }
-      })
-      .catch(() => {
+    fetchPostContent(slug).then(result => {
+      if (result) {
+        openViewer(result.title, result.html);
+      } else {
         window.location.href = href;
-      });
+      }
+    });
   }, [openViewer]);
 
   const handleClear = useCallback(() => {
@@ -343,7 +333,6 @@ export default function Terminal() {
     setHistory(prev => [...prev, cmd]);
     setInput('');
     setHistoryIndex(-1);
-    setTabOptions([]);
     setTabCycle(null);
   }, [cwd, output, appendInputLine, openViewer, getCurrentFiles, history, handleClear]);
 
@@ -401,12 +390,12 @@ export default function Terminal() {
           .map(f => dirPart + f.name + (f.type === 'dir' && !f.name.endsWith('/') ? '/' : ''));
       }
 
-      if (candidates.length === 0) { setTabCycle(null); setTabOptions([]); return; }
+      if (candidates.length === 0) { setTabCycle(null); return; }
 
       if (candidates.length === 1) {
         if (isCmd) setInput(candidates[0] + ' ');
         else { parts[parts.length - 1] = candidates[0]; setInput(parts.join(' ')); }
-        setTabCycle(null); setTabOptions([]);
+        setTabCycle(null);
         return;
       }
 
@@ -422,7 +411,6 @@ export default function Terminal() {
         if (isCmd) setInput(picked + ' ');
         else { parts[parts.length - 1] = picked; setInput(parts.join(' ')); }
         setTabCycle({ matches: candidates, idx: next, base: tabCycle.base });
-        setTabOptions(candidates);
       } else {
         // First Tab: extend to common prefix, show options
         const common = longestCommonPrefix(candidates);
@@ -431,21 +419,14 @@ export default function Terminal() {
           else { parts[parts.length - 1] = common; setInput(parts.join(' ')); }
         }
         setTabCycle({ matches: candidates, idx: -1, base: lword });
-        setTabOptions(candidates);
       }
       return;
     }
 
     if (e.key === 'Escape') {
-      setTabOptions([]);
       setTabCycle(null);
     }
   }, [input, history, historyIndex, handleCommand, getCurrentFiles, cwd]);
-
-  // Update cwd from command context
-  const handleSetCwd = useCallback((newCwd: string) => {
-    setCwd(newCwd);
-  }, []);
 
   const resizeDirs = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 
@@ -472,9 +453,9 @@ export default function Terminal() {
             onClick={line.isInput ? undefined : handleOutputClick}
           />
         ))}
-        {tabOptions.length > 0 && (
+        {tabCycle?.matches.length > 0 && (
           <div class="terminal-line" style="color:var(--overlay)">
-            {tabOptions.join('  ')}
+            {tabCycle.matches.join('  ')}
           </div>
         )}
         {ready && !viewer && (

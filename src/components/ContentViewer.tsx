@@ -2,7 +2,6 @@
 // Content Viewer - Overlay panel for reading blog posts
 // ============================================================
 
-import { h } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 
 interface Props {
@@ -11,6 +10,8 @@ interface Props {
   onClose: () => void;
   onNavigate?: (url: string) => void;
 }
+
+let mermaidIdCounter = 0;
 
 export default function ContentViewer({ title, html, onClose, onNavigate }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -68,7 +69,7 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
       });
 
       mermaidBlocks.forEach((block, i) => {
-        const id = `mermaid-${Date.now()}-${i}`;
+        const id = `mermaid-${++mermaidIdCounter}`;
         const source = block.textContent || '';
         mermaid.render(id, source).then(({ svg }) => {
           const container = document.createElement('div');

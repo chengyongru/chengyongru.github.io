@@ -18,7 +18,6 @@ const mockIndex: ContentIndex = {
 
 vi.mock('../file-tree', () => ({
   listDir: vi.fn((path: string) => mockFS[path]),
-  getFile: vi.fn(),
   getAllPosts: vi.fn(() => mockIndex.posts),
   getAllTags: vi.fn(() => mockIndex.tags),
   resolvePath: vi.fn((cwd: string, target: string) => {
@@ -36,13 +35,14 @@ vi.mock('../file-tree', () => ({
   }),
   getPostUrl: vi.fn((slug: string) => `/blog/${slug}/`),
   loadFileSystem: vi.fn(),
+  fetchPostContent: vi.fn(),
 }));
 
 // Mock fetch for commands that load content (cat, about)
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
-// Mock DOMParser for cat/about commands
+// Mock DOMParser for legacy tests that still need it
 const mockQuerySelector = vi.fn();
 globalThis.DOMParser = vi.fn().mockImplementation(() => ({
   parseFromString: () => ({
@@ -53,6 +53,7 @@ globalThis.DOMParser = vi.fn().mockImplementation(() => ({
 
 // Must import AFTER vi.mock
 import { executeCommand } from '../commands';
+import { fetchPostContent as mockFetchPostContent } from '../file-tree';
 
 function createMockCtx(overrides?: Partial<Record<string, any>>): any {
   const outputLines: string[] = [];
@@ -146,10 +147,10 @@ describe('cmdCD', () => {
 describe('cmdCAT', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockResolvedValue({
-      text: () => Promise.resolve('<html><article><p>content</p></article></html>'),
+    mockFetchPostContent.mockResolvedValue({
+      title: 'Test Post',
+      html: '<p>content</p>',
     });
-    mockQuerySelector.mockReturnValue({ innerHTML: '<p>content</p>' });
   });
 
   it('should find file by exact nested slug (cat notebook/ARIMA)', () => {
@@ -350,17 +351,17 @@ describe('cmdRECENT', () => {
 describe('cmdABOUT', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockResolvedValue({
-      text: () => Promise.resolve('<html><article><p>About content</p></article></html>'),
+    mockFetchPostContent.mockResolvedValue({
+      title: 'About Me',
+      html: '<p>About content</p>',
     });
-    mockQuerySelector.mockReturnValue({ innerHTML: '<p>About content</p>' });
   });
 
   it('should show loading then fetch about page', () => {
     const ctx = createMockCtx();
     executeCommand('about', ctx);
     expect(getOutputText(ctx)).toContain('Loading');
-    expect(mockFetch).toHaveBeenCalled();
+    expect(mockFetchPostContent).toHaveBeenCalled();
   });
 });
 

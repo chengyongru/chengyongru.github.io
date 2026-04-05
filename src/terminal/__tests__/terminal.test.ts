@@ -1,29 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ContentIndex } from '../types';
 import { categorizeDir, resolvePath, getPostUrl, buildFS } from '../file-tree';
+import { shouldFilterSlug } from '../constants';
 
 // ===== Pure Functions =====
 
 describe('categorizeDir', () => {
   it('extracts directory from nested notebook slug', () => {
-    expect(categorizeDir('notebook/ARIMA', [])).toBe('notebook/');
+    expect(categorizeDir('notebook/ARIMA')).toBe('notebook/');
   });
 
   it('extracts directory from nested diary slug', () => {
-    expect(categorizeDir('diary/2025-10-11', [])).toBe('diary/');
+    expect(categorizeDir('diary/2025-10-11')).toBe('diary/');
   });
 
   it('categorizes date-format flat slug as diary', () => {
-    expect(categorizeDir('2025-10-11', [])).toBe('diary/');
+    expect(categorizeDir('2025-10-11')).toBe('diary/');
   });
 
   it('categorizes unknown flat slug as notebook', () => {
-    expect(categorizeDir('something', [])).toBe('notebook/');
+    expect(categorizeDir('something')).toBe('notebook/');
   });
 
   it('categorizes index slug (no slash) as notebook fallback', () => {
     // index is handled specially before categorizeDir is called
-    expect(categorizeDir('index', [])).toBe('notebook/');
+    expect(categorizeDir('index')).toBe('notebook/');
   });
 });
 
@@ -175,8 +176,9 @@ function buildFSWithIndex(index: ContentIndex) {
 
   const root: any[] = [];
   for (const [dir, desc] of Object.entries(index.directories)) {
-    // Filter out non-blog directories
-    if (shouldFilterDir(dir)) continue;
+    // Filter out non-blog directories (strip trailing slash for comparison)
+    const dirKey = dir.replace(/\/$/, '');
+    if (shouldFilterSlug(dirKey + '/dummy')) continue;
     root.push({ name: dir, type: 'dir', desc });
   }
   const indexPost = index.posts.find(p => p.slug === 'index');
@@ -196,7 +198,7 @@ function buildFSWithIndex(index: ContentIndex) {
     if (post.slug === 'index') continue;
     if (shouldFilterSlug(post.slug)) continue;
 
-    const dir = categorizeDir(post.slug, post.tags);
+    const dir = categorizeDir(post.slug);
     const dirPath = '/' + dir;
     if (!fs[dirPath]) fs[dirPath] = [];
 
@@ -215,24 +217,4 @@ function buildFSWithIndex(index: ContentIndex) {
   }
 
   return fs;
-}
-
-// Helper: directories to filter out (Obsidian internal, clippings, etc.)
-function shouldFilterDir(dir: string): boolean {
-  const blocked = ['clippings/', '_obsidian/', '.obsidian/', '.trash/', '.claude/', 'img/', 'src/'];
-  return blocked.some(b => dir.toLowerCase().startsWith(b.toLowerCase()));
-}
-
-// Helper: slugs to filter out (CLAUDE files, internal Obsidian files)
-function shouldFilterSlug(slug: string): boolean {
-  // Filter CLAUDE files (case-insensitive)
-  const parts = slug.split('/');
-  if (parts[parts.length - 1].toLowerCase() === 'claude') return true;
-
-  // Filter non-blog directories
-  const firstDir = slug.split('/')[0]?.toLowerCase() || '';
-  const blockedDirs = ['clippings', '_obsidian', '.obsidian', '.trash', '.claude', 'img', 'src'];
-  if (blockedDirs.includes(firstDir)) return true;
-
-  return false;
 }

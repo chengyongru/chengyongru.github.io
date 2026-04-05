@@ -5,18 +5,7 @@
 
 import type { CollectionEntry } from 'astro:content';
 import type { ContentIndex, FileEntry } from '../terminal/types';
-
-// Directories to exclude (Obsidian internals, non-blog content)
-const BLOCKED_DIRS = ['clippings', '_obsidian', '.obsidian', '.trash', '.claude', 'img', 'src'];
-
-function shouldFilterId(id: string): boolean {
-  const parts = id.split('/');
-  const filename = parts[parts.length - 1]?.toLowerCase() || '';
-  if (filename === 'claude') return true;
-  const firstDir = parts[0]?.toLowerCase() || '';
-  if (BLOCKED_DIRS.includes(firstDir)) return true;
-  return false;
-}
+import { shouldFilterSlug } from '../terminal/constants';
 
 function estimateReadingTime(text: string): number {
   // Chinese: ~300 chars/min, English: ~200 words/min
@@ -30,7 +19,7 @@ const DIR_DESCS: Record<string, string> = {
   'notebook/': 'ML/DL/RL/Security notes',
 };
 
-function categorizePost(id: string, _tags: string[]): { dir: string; desc: string } {
+function categorizePost(id: string): { dir: string; desc: string } {
   if (id === 'index') return { dir: '/', desc: '' };
 
   // Extract directory from nested id (e.g., 'notebook/arima' → 'notebook/')
@@ -75,11 +64,11 @@ export async function generateContentIndex(posts: CollectionEntry<'blog'>[]): Pr
   for (const post of posts) {
     const id = post.id;
     if (post.data.draft) continue;
-    if (shouldFilterId(id)) continue;
+    if (shouldFilterSlug(id)) continue;
 
     const body = (post as any).body || '';
 
-    const { dir, desc } = categorizePost(id, post.data.tags || []);
+    const { dir, desc } = categorizePost(id);
     if (desc && !directories[dir]) {
       directories[dir] = desc;
     }
@@ -140,7 +129,7 @@ export function buildFileSystem(index: ContentIndex): Record<string, FileEntry[]
   for (const post of index.posts) {
     if (post.slug === 'index') continue;
 
-    const { dir } = categorizePost(post.slug, post.tags);
+    const { dir } = categorizePost(post.slug);
     const dirPath = '/' + dir;
 
     if (!fs[dirPath]) {

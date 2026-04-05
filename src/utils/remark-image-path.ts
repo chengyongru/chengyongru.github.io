@@ -1,5 +1,13 @@
 import { visit } from 'unist-util-visit';
 
+function escAttr(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 /**
  * Remark plugin: converts .md file embeds (![](img/file.md)) to placeholder text.
  * Converts /img/ images to raw <img> HTML to bypass Astro's asset pipeline,
@@ -16,7 +24,7 @@ export function remarkImagePath() {
       // Convert /img/ images to raw <img> HTML to bypass Astro asset pipeline
       if ((url.startsWith('/img/') || url.startsWith('img/')) && index !== undefined && parent) {
         const src = url.startsWith('/') ? url : `/${url}`;
-        const alt = node.alt || '';
+        const alt = escAttr(node.alt || '');
         parent.children[index] = {
           type: 'html',
           value: `<img src="${src}" alt="${alt}" />`,

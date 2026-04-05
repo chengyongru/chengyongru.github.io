@@ -6,11 +6,11 @@
 import type { CommandContext } from './types';
 import {
   listDir,
-  getFile,
   getAllPosts,
   getAllTags,
   resolvePath,
   getPostUrl,
+  fetchPostContent,
 } from './file-tree';
 
 function esc(str: string): string {
@@ -211,30 +211,15 @@ function cmdCAT(args: string[], ctx: CommandContext): void {
   }
 
   // Fetch the pre-rendered HTML page
-  const url = getPostUrl(post.slug);
   ctx.output(`<span style="color:var(--overlay)">Loading ${esc(post.title)}...</span>`);
 
-  fetch(url)
-    .then(res => res.text())
-    .then(html => {
-      // Extract article content from the HTML
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      const article = doc.querySelector('article');
-      if (article) {
-        // Strip blog page header/footer — viewer has its own title bar
-        article.querySelector('.post-header')?.remove();
-        article.querySelector('.post-footer')?.remove();
-        ctx.openViewer(post.title, article.innerHTML);
-      } else {
-        // Fallback: use body content
-        const body = doc.querySelector('main') || doc.querySelector('.prose') || doc.body;
-        ctx.openViewer(post.title, body.innerHTML);
-      }
-    })
-    .catch(() => {
+  fetchPostContent(post.slug).then(result => {
+    if (result) {
+      ctx.openViewer(post.title, result.html);
+    } else {
       ctx.output(`<span style="color:var(--red)">Failed to load: ${esc(post.title)}</span>`);
-    });
+    }
+  });
 }
 
 // ---- help ----
@@ -348,30 +333,19 @@ function cmdRECENT(ctx: CommandContext): void {
 
 // ---- about ----
 function cmdABOUT(ctx: CommandContext): void {
-  const url = getPostUrl('index');
   ctx.output('<span style="color:var(--overlay)">Loading...</span>');
-  fetch(url)
-    .then(res => res.text())
-    .then(html => {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      const article = doc.querySelector('article');
-      if (article) {
-        ctx.openViewer('About Me', article.innerHTML);
-      }
-    })
-    .catch(() => {
+  fetchPostContent('index').then(result => {
+    if (result) {
+      ctx.openViewer('About Me', result.html);
+    } else {
       ctx.output('<span style="color:var(--red)">Failed to load about page.</span>');
-    });
+    }
+  });
 }
 
 // ---- neofetch ----
 function cmdNEOFETCH(ctx: CommandContext): void {
   const theme = (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) || 'catppuccin';
-  const themeLabels: Record<string, string> = {
-    catppuccin: 'Catppuccin Mocha', dracula: 'Dracula',
-    gruvbox: 'Gruvbox Dark', solarized: 'Solarized Dark',
-  };
 
   const items = [
     ['OS', 'ChengYongruOS v4.0'],
@@ -382,7 +356,7 @@ function cmdNEOFETCH(ctx: CommandContext): void {
     ['Languages', 'Python, C++, TypeScript'],
     ['Focus', 'ML, Security, Reverse Engineering'],
     ['Uptime', 'Since 2025'],
-    ['Theme', themeLabels[theme] || theme],
+    ['Theme', THEME_LABELS[theme] || theme],
   ];
 
   const rows = items

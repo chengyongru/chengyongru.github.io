@@ -4,30 +4,25 @@
 // ============================================================
 
 import type { ContentIndex, FileEntry } from './types';
+import { shouldFilterSlug, BLOCKED_DIRS } from './constants';
 
 let index: ContentIndex | null = null;
 let fileSystem: Record<string, FileEntry[]> | null = null;
 
-// Directories to exclude from the virtual file system
-const BLOCKED_DIRS = ['clippings', '_obsidian', '.obsidian', '.trash', '.claude', 'img', 'src'];
-
-function shouldFilterSlug(slug: string): boolean {
-  const parts = slug.split('/');
-  const filename = parts[parts.length - 1]?.toLowerCase() || '';
-  if (filename === 'claude') return true;
-  const firstDir = parts[0]?.toLowerCase() || '';
-  if (BLOCKED_DIRS.includes(firstDir)) return true;
-  return false;
-}
-
 export async function loadFileSystem(): Promise<void> {
   if (index) return;
 
-  const res = await fetch('/content-index.json');
-  index = await res.json();
-
-  // Build file system from index
-  fileSystem = buildFS();
+  try {
+    const res = await fetch('/content-index.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    index = await res.json();
+    // Build file system from index
+    fileSystem = buildFS();
+  } catch (err) {
+    console.error('Failed to load content index:', err);
+    index = { posts: [], tags: [], directories: {} };
+    fileSystem = {};
+  }
 }
 
 export function buildFS(): Record<string, FileEntry[]> {
@@ -56,7 +51,7 @@ export function buildFS(): Record<string, FileEntry[]> {
   // Per-directory file lists
   for (const post of index!.posts) {
     if (post.slug === 'index' || shouldFilterSlug(post.slug)) continue;
-    const dir = categorizeDir(post.slug, post.tags);
+    const dir = categorizeDir(post.slug);
     const dirPath = '/' + dir;
     if (!fs[dirPath]) fs[dirPath] = [];
     const fileName = post.slug.includes('/') ? post.slug.split('/').pop()! + '.md' : post.slug + '.md';
@@ -73,7 +68,7 @@ export function buildFS(): Record<string, FileEntry[]> {
   return fs;
 }
 
-export function categorizeDir(slug: string, _tags: string[]): string {
+export function categorizeDir(slug: string): string {
   const slashIdx = slug.indexOf('/');
   if (slashIdx > -1) return slug.substring(0, slashIdx + 1);
   if (slug.match(/^\d{4}-\d{2}-\d{2}$/)) return 'diary/';
@@ -86,12 +81,7 @@ export function listDir(path: string): FileEntry[] | undefined {
   return fileSystem[normalized];
 }
 
-export function getFile(slug: string): FileEntry | undefined {
-  if (!index) return undefined;
-  return index.posts.find(p => p.slug === slug);
-}
-
-export function getAllPosts() {
+export function getAllPosts(): PostMeta[] {
   if (!index) return [];
   return index.posts;
 }
@@ -122,4 +112,24 @@ export function resolvePath(cwd: string, target: string): string {
 
 export function getPostUrl(slug: string): string {
   return `/blog/${slug}/`;
+}
+
+/** Fetch a blog page and extract the article HTML (header/footer stripped for viewer) */
+export async function fetchPostContent(slug: string): Promise<{ title: string; html: string } | null> {
+  const url = getPostUrl(slug);
+  try {
+    const res = await fetch(url);
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const article = doc.querySelector('article');
+    if (!article) return null;
+    article.querySelector('.post-header')?.remove();
+    article.querySelector('.post-footer')?.remove();
+    return {
+      title: article.querySelector('h1')?.textContent || slug,
+      html: article.innerHTML,
+    };
+  } catch {
+    return null;
+  }
 }
