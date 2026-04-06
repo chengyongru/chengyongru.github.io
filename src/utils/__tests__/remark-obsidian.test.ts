@@ -239,3 +239,202 @@ function findHtmlNodes(node: any): string[] {
   }
   return results;
 }
+
+// ===== Additional branch coverage =====
+
+describe('%%comments%% in html nodes', () => {
+  it('should remove comments from html nodes', async () => {
+    // Construct an AST with an html node containing %%comment%%
+    const tree: any = {
+      type: 'root',
+      children: [
+        { type: 'html', value: '<div>before %%hidden%% after</div>' },
+      ],
+    };
+    await unified().use(remarkObsidian).run(tree);
+    // The html node value should have the comment stripped
+    expect(tree.children[0].value).not.toContain('%%');
+    expect(tree.children[0].value).toContain('before');
+    expect(tree.children[0].value).toContain('after');
+  });
+
+  it('should remove html node if comment was the only content', async () => {
+    const tree: any = {
+      type: 'root',
+      children: [
+        { type: 'html', value: '%%entire comment%%' },
+      ],
+    };
+    await unified().use(remarkObsidian).run(tree);
+    // Node should be removed entirely
+    expect(tree.children.length).toBe(0);
+  });
+});
+
+describe('text node entirely consumed by comment', () => {
+  it('should remove text node when entire value is a comment', async () => {
+    const tree: any = {
+      type: 'root',
+      children: [
+        { type: 'paragraph', children: [
+          { type: 'text', value: '%%only comment%%' },
+        ] },
+      ],
+    };
+    await unified().use(remarkObsidian).run(tree);
+    // The paragraph should now have no children
+    expect(tree.children[0].children.length).toBe(0);
+  });
+});
+
+describe('highlight with surrounding text', () => {
+  it('should preserve text before and after ==highlight==', async () => {
+    const tree = await processAst('before ==mid== after');
+    const html = findHtmlNodes(tree);
+    const combined = html.join('');
+    expect(combined).toContain('<mark>mid</mark>');
+    // The text nodes should also be present
+    const textNodes = findAllTextNodes(tree);
+    expect(textNodes).toContain('before ');
+    expect(textNodes).toContain(' after');
+  });
+
+  it('should handle highlight at start of text', async () => {
+    const tree = await processAst('==start== rest');
+    const html = findHtmlNodes(tree);
+    expect(html.some((h: string) => h.includes('<mark>start</mark>'))).toBe(true);
+  });
+
+  it('should handle highlight at end of text', async () => {
+    const tree = await processAst('rest ==end==');
+    const html = findHtmlNodes(tree);
+    expect(html.some((h: string) => h.includes('<mark>end</mark>'))).toBe(true);
+  });
+});
+
+describe('callout unknown type', () => {
+  it('should use default clipboard icon for unknown callout type', async () => {
+    const tree = await processAst('> [!unknown] Custom\n> Body');
+    const bq = tree.children.find((c: any) => c.type === 'blockquote') as any;
+    expect(bq).toBeDefined();
+    expect(bq.data?.hProperties?.['data-callout']).toBe('unknown');
+    const titlePara = bq.children[0];
+    const titleText = titlePara.children[0]?.value || '';
+    // Should contain an emoji (default is 📋 for unknown types, but 📌 for 'pin')
+    expect(titleText.length).toBeGreaterThan(0);
+    // Should contain the title text
+    expect(titleText).toContain('Custom');
+  });
+
+  it('should not transform blockquote with non-paragraph first child', async () => {
+    const tree: any = {
+      type: 'root',
+      children: [
+        {
+          type: 'blockquote',
+          children: [
+            { type: 'html', value: '<div>not a paragraph</div>' },
+          ],
+        },
+      ],
+    };
+    await unified().use(remarkObsidian).run(tree);
+    const bq = tree.children[0] as any;
+    expect(bq.data?.hProperties?.['data-callout']).toBeUndefined();
+  });
+
+  it('should not transform blockquote with non-text first child of paragraph', async () => {
+    const tree: any = {
+      type: 'root',
+      children: [
+        {
+          type: 'blockquote',
+          children: [
+            {
+              type: 'paragraph',
+              children: [
+                { type: 'html', value: '<strong>bold</strong>' },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    await unified().use(remarkObsidian).run(tree);
+    const bq = tree.children[0] as any;
+    expect(bq.data?.hProperties?.['data-callout']).toBeUndefined();
+  });
+
+  it('should be case-insensitive for callout type', async () => {
+    const tree = await processAst('> [!NOTE] Case Test\n> Body');
+    const bq = tree.children.find((c: any) => c.type === 'blockquote') as any;
+    expect(bq.data?.hProperties?.['data-callout']).toBe('note');
+  });
+});
+
+describe('link rewriting edge cases', () => {
+  it('should not rewrite data: links', async () => {
+    const tree = await processAst('[link](data:image/png;base64,abc)');
+    const link = tree.children[0]?.children?.[0] as any;
+    expect(link.url).toBe('data:image/png;base64,abc');
+  });
+
+  it('should skip link with undefined url', async () => {
+    const tree: any = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            { type: 'link', url: undefined, children: [{ type: 'text', value: 'link' }] },
+          ],
+        },
+      ],
+    };
+    // Should not throw
+    await unified().use(remarkObsidian).run(tree);
+    expect(tree.children[0].children[0].url).toBeUndefined();
+  });
+
+  it('should handle .md link without hash correctly', async () => {
+    const tree = await processAst('[link](page.md)');
+    const link = tree.children[0]?.children?.[0] as any;
+    expect(link.url).toBe('/blog/page/');
+  });
+
+  it('should handle URL-encoded paths in .md links', async () => {
+    const tree = await processAst('[link](notebook/%E6%B5%8B%E8%AF%95.md)');
+    const link = tree.children[0]?.children?.[0] as any;
+    // slugify decodes first, then lowercases
+    expect(link.url).toBe('/blog/notebook/测试/');
+  });
+});
+
+describe('comment removal edge cases', () => {
+  it('should handle text node that becomes empty after comment removal', async () => {
+    const tree: any = {
+      type: 'root',
+      children: [
+        { type: 'paragraph', children: [
+          { type: 'text', value: '%%only%%' },
+        ] },
+      ],
+    };
+    await unified().use(remarkObsidian).run(tree);
+    expect(tree.children[0].children.length).toBe(0);
+  });
+});
+
+// Helper: find all text node values in tree
+function findAllTextNodes(node: any): string[] {
+  const results: string[] = [];
+  if (node.type === 'text') {
+    results.push(node.value);
+  }
+  if (node.children) {
+    for (const child of node.children) {
+      results.push(...findAllTextNodes(child));
+    }
+  }
+  return results;
+}

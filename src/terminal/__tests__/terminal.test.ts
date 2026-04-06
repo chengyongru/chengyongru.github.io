@@ -274,3 +274,33 @@ describe('extractSlugFromHref (viewer navigation)', () => {
     expect(hash).toBe('频率学派');
   });
 });
+
+// ===== shouldFilterSlug =====
+
+describe('shouldFilterSlug', () => {
+  it('filters claude files (case-insensitive)', () => {
+    expect(shouldFilterSlug('notebook/claude')).toBe(true);
+    expect(shouldFilterSlug('Claude')).toBe(true);
+    expect(shouldFilterSlug('CLAUDE')).toBe(true);
+  });
+
+  it('filters blocked directories', () => {
+    expect(shouldFilterSlug('clippings/test')).toBe(true);
+    expect(shouldFilterSlug('_obsidian/config')).toBe(true);
+    expect(shouldFilterSlug('.obsidian/plugins')).toBe(true);
+    expect(shouldFilterSlug('.trash/deleted')).toBe(true);
+    expect(shouldFilterSlug('.claude/settings')).toBe(true);
+    expect(shouldFilterSlug('img/photo')).toBe(true);
+    expect(shouldFilterSlug('src/main')).toBe(true);
+  });
+
+  it('does not filter normal slugs', () => {
+    expect(shouldFilterSlug('notebook/ARIMA')).toBe(false);
+    expect(shouldFilterSlug('diary/2025-10-11')).toBe(false);
+    expect(shouldFilterSlug('index')).toBe(false);
+  });
+
+  it('handles empty slug', () => {
+    expect(shouldFilterSlug('')).toBe(false);
+  });
+});

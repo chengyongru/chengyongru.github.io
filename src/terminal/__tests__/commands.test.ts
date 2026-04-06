@@ -53,7 +53,7 @@ globalThis.DOMParser = vi.fn().mockImplementation(() => ({
 }));
 
 // Must import AFTER vi.mock
-import { executeCommand } from '../commands';
+import { executeCommand, getPrompt, getAllCommands } from '../commands';
 import { fetchPostContent as mockFetchPostContent } from '../file-tree';
 
 function createMockCtx(overrides?: Partial<Record<string, any>>): any {
@@ -572,5 +572,279 @@ describe('unknown command', () => {
     executeCommand('foobar', ctx);
     expect(getOutputText(ctx)).toContain('command not found');
     expect(getOutputText(ctx)).toContain('help');
+  });
+});
+
+// ===== Additional branch coverage =====
+
+describe('cmdCAT additional branches', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should report error when fetchPostContent returns null', async () => {
+    mockFetchPostContent.mockResolvedValue(null);
+    const ctx = createMockCtx();
+    executeCommand('cat ARIMA', ctx);
+    // Wait for async
+    await vi.waitFor(() => {
+      expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining('Failed to load'));
+    });
+  });
+
+  it('should show ambiguous candidates for fuzzy match', () => {
+    const ctx = createMockCtx();
+    // "Model" matches "ARIMA Model" by title and "Dropout Techniques" doesn't match
+    // Let's use a query that matches multiple: "time" matches slug "time-series" tag
+    // Actually use title fuzzy: "Technique" is unique. Use partial: "Dro" matches only one.
+    // Best approach: add duplicate-matching posts
+    mockIndex.posts.push({
+      slug: 'notebook/test-model',
+      title: 'Another ARIMA Model',
+      date: '2025-06-01',
+      tags: ['ML'],
+      reading_time: 3,
+    });
+    executeCommand('cat ARIMA Model', ctx);
+    const output = getOutputText(ctx);
+    expect(output).toContain('Ambiguous');
+    mockIndex.posts.pop();
+  });
+});
+
+describe('cmdGREP additional branches', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should show truncation when more than 20 results', () => {
+    // Add many posts to mock index to exceed 20 results
+    for (let i = 0; i < 25; i++) {
+      mockIndex.posts.push({
+        slug: `notebook/test-${i}`,
+        title: `Test Post ${i}`,
+        date: '2025-01-01',
+        tags: ['test'],
+        reading_time: 1,
+        text: 'common search term',
+      });
+    }
+    const ctx = createMockCtx();
+    executeCommand('grep common search term', ctx);
+    const output = getOutputText(ctx);
+    expect(output).toContain('more');
+    // Clean up
+    mockIndex.posts.splice(5, 25);
+  });
+
+  it('should search full text when available', () => {
+    // Add a post with text that doesn't match title/slug/tags
+    mockIndex.posts.push({
+      slug: 'notebook/hidden-gem',
+      title: 'Hidden Gem',
+      date: '2025-06-01',
+      tags: ['rare'],
+      reading_time: 2,
+      text: 'unique pineapple keyword here',
+    });
+    const ctx = createMockCtx();
+    executeCommand('grep pineapple', ctx);
+    const output = getOutputText(ctx);
+    expect(output).toContain('Hidden Gem');
+    expect(output).toContain('[content]');
+    mockIndex.posts.pop();
+  });
+});
+
+describe('cmdABOUT additional branches', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should report error when about page fails to load', async () => {
+    mockFetchPostContent.mockResolvedValue(null);
+    const ctx = createMockCtx();
+    executeCommand('about', ctx);
+    await vi.waitFor(() => {
+      expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining('Failed to load about page'));
+    });
+  });
+});
+
+describe('cmdLS pagination', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Create a directory with many files to test pagination
+    const manyFiles: FileEntry[] = [];
+    for (let i = 1; i <= 15; i++) {
+      manyFiles.push({
+        name: `file${i}.md`,
+        type: 'file',
+        slug: `notebook/file${i}`,
+        title: `File ${i}`,
+        date: '2025-01-01',
+        tags: [],
+      });
+    }
+    mockFS['/notebook/'] = manyFiles;
+  });
+
+  it('should show pagination for large directories', () => {
+    const ctx = createMockCtx();
+    executeCommand('ls notebook/', ctx);
+    const output = getOutputText(ctx);
+    expect(output).toContain('page 1/2');
+    expect(output).toContain('next');
+  });
+
+  it('should navigate to second page', () => {
+    const ctx = createMockCtx();
+    executeCommand('ls notebook/ 2', ctx);
+    const output = getOutputText(ctx);
+    expect(output).toContain('page 2/2');
+  });
+});
+
+describe('cmdLS empty directory', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFS['/empty/'] = [];
+  });
+
+  it('should show (empty) for empty directory', () => {
+    const ctx = createMockCtx();
+    executeCommand('ls empty/', ctx);
+    expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining('(empty)'));
+  });
+});
+
+describe('cmdLS with file that has slug-like title', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFS['/'] = [
+      {
+        name: 'test.md',
+        type: 'file',
+        slug: 'notebook/test-post',
+        title: 'notebook/test-post', // slug-like title (contains /)
+        date: '2025-01-01',
+        tags: [],
+      },
+    ];
+  });
+
+  it('should extract basename from slug-like title via displayName', () => {
+    const ctx = createMockCtx();
+    executeCommand('ls', ctx);
+    const output = getOutputText(ctx);
+    // displayName extracts "test-post" from "notebook/test-post"
+    expect(output).toContain('test-post');
+  });
+});
+
+describe('cmdLS with empty title', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFS['/'] = [
+      {
+        name: 'notitle.md',
+        type: 'file',
+        slug: 'notebook/notitle',
+        title: '', // empty title
+        date: '2025-01-01',
+        tags: [],
+      },
+    ];
+  });
+
+  it('should fall back to filename when title is empty', () => {
+    const ctx = createMockCtx();
+    executeCommand('ls', ctx);
+    const output = getOutputText(ctx);
+    // displayName falls back to "notitle.md" basename → "notitle"
+    expect(output).toContain('notitle');
+  });
+});
+
+describe('empty command', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('should do nothing for empty command', () => {
+    const ctx = createMockCtx();
+    executeCommand('', ctx);
+    expect(ctx.output).not.toHaveBeenCalled();
+  });
+
+  it('should do nothing for whitespace-only command', () => {
+    const ctx = createMockCtx();
+    executeCommand('   ', ctx);
+    expect(ctx.output).not.toHaveBeenCalled();
+  });
+});
+
+describe('cmdTHEME current theme marker', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const store: Record<string, string> = { theme: 'dracula' };
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn((k: string) => store[k] || null),
+      setItem: vi.fn((k: string, v: string) => { store[k] = v; }),
+    });
+    vi.stubGlobal('document', {
+      documentElement: { setAttribute: vi.fn(), getAttribute: vi.fn() },
+    });
+  });
+
+  it('should mark current theme with <<', () => {
+    const ctx = createMockCtx();
+    executeCommand('theme', ctx);
+    const output = getOutputText(ctx);
+    // HTML entities: << is rendered as &lt;&lt; in the HTML output
+    expect(output).toContain('&lt;&lt;');
+  });
+});
+
+// ===== getPrompt =====
+
+describe('getPrompt', () => {
+  it('should return root prompt for /', () => {
+    expect(getPrompt('/')).toBe('visitor@chengyongru:~$ ');
+  });
+
+  it('should return directory prompt for subdirectory', () => {
+    expect(getPrompt('/notebook/')).toBe('visitor@chengyongru:~/notebook$ ');
+  });
+});
+
+// ===== getAllCommands =====
+
+describe('getAllCommands', () => {
+  it('should return array of command names', () => {
+    const cmds = getAllCommands();
+    expect(cmds).toContain('ls');
+    expect(cmds).toContain('cd');
+    expect(cmds).toContain('cat');
+    expect(cmds).toContain('help');
+  });
+});
+
+// ===== cmdCAT cwd-prefix miss =====
+
+describe('cmdCAT cwd-prefix miss branch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetchPostContent.mockResolvedValue({
+      title: 'Test',
+      html: '<p>test</p>',
+    });
+  });
+
+  it('should not find file via cwd-prefix from wrong directory', () => {
+    const ctx = createMockCtx();
+    ctx.cwd = '/diary/';
+    executeCommand('cat xyznoexist', ctx);
+    // From /diary/, cwd-prefix = diary/xyznoexist — no match
+    // Fuzzy: "xyznoexist" matches nothing
+    expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining('No such file'));
   });
 });
