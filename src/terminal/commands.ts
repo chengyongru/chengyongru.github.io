@@ -7,9 +7,7 @@ import type { CommandContext } from './types';
 import {
   listDir,
   getAllPosts,
-  getAllTags,
   resolvePath,
-  getPostUrl,
   fetchPostContent,
 } from './file-tree';
 
@@ -78,7 +76,7 @@ export function executeCommand(
       break;
     default:
       ctx.output(
-        `<span style="color:var(--red)">command not found: ${esc(command)}. Type 'help' for available commands.</span>`,
+        `<span style="color:var(--red)">command not found: ${esc(parts[0] || '')}. Type 'help' for available commands.</span>`,
       );
   }
 }
@@ -118,7 +116,7 @@ function cmdLS(args: string[], ctx: CommandContext): void {
       output += `<div style="display:flex;gap:12px;"><span class="clickable-dir" data-action="cd" data-path="${targetDir}${f.name}" style="min-width:180px;display:inline-block;">${esc(f.name)}</span><span style="color:var(--overlay);flex:1;">${esc(f.desc || '')}</span></div>`;
     } else if (f.title || f.name) {
       const tagsHtml = f.tags ? f.tags.map(t => `<span style="background:var(--surface);color:var(--blue);padding:1px 6px;border-radius:3px;font-size:0.8em;">${esc(t)}</span>`).join(' ') : '';
-      const name = displayName(f.title, f.name);
+      const name = displayName(f.title || '', f.name);
       output += `<div style="display:flex;gap:12px;align-items:baseline;"><span class="clickable-file" data-action="cat" data-slug="${f.slug || ''}" style="min-width:280px;display:inline-block;">${esc(name)}</span><span style="color:var(--overlay);min-width:90px;flex-shrink:0;">${f.date ? f.date.split('T')[0] : ''}</span><span>${tagsHtml}</span></div>`;
     }
   }
@@ -196,20 +194,29 @@ function cmdCAT(args: string[], ctx: CommandContext): void {
 
   // Fallback: fuzzy substring match on slug and title
   if (!post) {
-    const query = resolvedSlug || rawSlug.toLowerCase();
-    const fuzzy = posts.filter(p =>
-      p.slug.toLowerCase().includes(query) ||
-      p.title.toLowerCase().includes(query),
-    );
+    const query = rawSlug.toLowerCase();
+    // Extract basename for title matching (handles "notebook/Title" from tab completion)
+    const baseQuery = query.includes('/') ? query.substring(query.lastIndexOf('/') + 1) : query;
 
-    if (fuzzy.length === 1) {
-      post = fuzzy[0];
-    } else if (fuzzy.length > 1) {
-      ctx.output(`<span style="color:var(--yellow)">Ambiguous match for "${esc(filename)}". Candidates:</span>`);
-      for (const f of fuzzy.slice(0, 10)) {
-        ctx.output(`<div><span class="clickable-file" data-action="cat" data-slug="${f.slug}">${esc(f.title)}</span> <span style="color:var(--overlay)">${f.slug}</span></div>`);
+    // Try exact title match first (common case after tab completion)
+    post = posts.find(p => p.title.toLowerCase() === baseQuery);
+
+    if (!post) {
+      const fuzzy = posts.filter(p =>
+        p.slug.toLowerCase().includes(query) ||
+        p.title.toLowerCase().includes(query) ||
+        (baseQuery !== query && p.title.toLowerCase().includes(baseQuery)),
+      );
+
+      if (fuzzy.length === 1) {
+        post = fuzzy[0];
+      } else if (fuzzy.length > 1) {
+        ctx.output(`<span style="color:var(--yellow)">Ambiguous match for "${esc(filename)}". Candidates:</span>`);
+        for (const f of fuzzy.slice(0, 10)) {
+          ctx.output(`<div><span class="clickable-file" data-action="cat" data-slug="${f.slug}">${esc(f.title)}</span> <span style="color:var(--overlay)">${f.slug}</span></div>`);
+        }
+        return;
       }
-      return;
     }
   }
 
@@ -231,7 +238,7 @@ function cmdCAT(args: string[], ctx: CommandContext): void {
 }
 
 // ---- help ----
-function cmdHELP(ctx: CommandContext, onCommandFromOutput?: (cmd: string) => void): void {
+function cmdHELP(ctx: CommandContext, _onCommandFromOutput?: (cmd: string) => void): void {
   const helpContent = `
 <div style="color:var(--peach);font-weight:bold;margin-bottom:8px;">═══ Available Commands ═══</div>
 <table style="width:auto;">
@@ -291,9 +298,8 @@ function cmdGREP(args: string[], ctx: CommandContext): void {
 }
 
 // ---- tag ----
-function cmdTAG(args: string[], ctx: CommandContext, onCommandFromOutput?: (cmd: string) => void): void {
+function cmdTAG(args: string[], ctx: CommandContext, _onCommandFromOutput?: (cmd: string) => void): void {
   if (args.length === 0) {
-    const tags = getAllTags();
     const posts = getAllPosts();
     const tagCounts: Record<string, number> = {};
     for (const p of posts) {

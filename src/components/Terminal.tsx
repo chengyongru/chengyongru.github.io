@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import ContentViewer from './ContentViewer';
 import { executeCommand, getPrompt, getAllCommands } from '../terminal/commands';
-import { loadFileSystem, listDir, getPostUrl, resolvePath, fetchPostContent } from '../terminal/file-tree';
+import { loadFileSystem, listDir, resolvePath, fetchPostContent } from '../terminal/file-tree';
 import type { FileEntry } from '../terminal/types';
 
 interface OutputLine {
@@ -435,6 +435,7 @@ export default function Terminal() {
       e.preventDefault();
       const parts = input.split(' ');
       const isCmd = parts.length <= 1;
+      const cmdName = parts[0].toLowerCase();
       const word = isCmd ? parts[0] : parts[parts.length - 1];
       const lword = word.toLowerCase();
 
@@ -443,15 +444,45 @@ export default function Terminal() {
       if (isCmd) {
         candidates = getAllCommands().filter(c => c.startsWith(lword));
       } else {
-        // Path-aware file completion
+        // Path-aware completion
         const lastSlash = word.lastIndexOf('/');
         const dirPart = lastSlash >= 0 ? word.substring(0, lastSlash + 1) : '';
         const filePrefix = word.substring(lastSlash + 1).toLowerCase();
         const resolvedDir = dirPart ? resolvePath(cwd, dirPart) : cwd;
         const files = listDir(resolvedDir) || [];
-        candidates = files
-          .filter(f => f.name.toLowerCase().startsWith(filePrefix))
-          .map(f => dirPart + f.name + (f.type === 'dir' && !f.name.endsWith('/') ? '/' : ''));
+
+        if (cmdName === 'cd') {
+          // cd: only show directories by name
+          const matched = files.filter(f => f.type === 'dir' && f.name.toLowerCase().startsWith(filePrefix));
+          candidates = matched.map(f => dirPart + f.name);
+        } else {
+          // File commands (cat/grep/tag/…): directories + files
+          // Always include matching directories (for path navigation like cat notebook/…)
+          const dirMatches = files.filter(f => f.type === 'dir' && f.name.toLowerCase().startsWith(filePrefix));
+
+          // File matching by title (priority) then filename
+          let fileMatches = files.filter(f =>
+            f.type === 'file' && f.title?.toLowerCase().startsWith(filePrefix),
+          );
+          if (fileMatches.length === 0) {
+            fileMatches = files.filter(f =>
+              f.type === 'file' && f.name.toLowerCase().startsWith(filePrefix),
+            );
+          }
+          if (fileMatches.length === 0) {
+            fileMatches = files.filter(f =>
+              f.type === 'file' && f.title?.toLowerCase().includes(filePrefix),
+            );
+          }
+
+          candidates = [
+            ...dirMatches.map(f => dirPart + f.name),
+            ...fileMatches.map(f => {
+              const display = f.title || f.name.replace(/\.md$/i, '');
+              return dirPart + (display.includes(' ') ? `"${display}"` : display);
+            }),
+          ];
+        }
       }
 
       if (candidates.length === 0) { setTabCycle(null); return; }
@@ -467,14 +498,15 @@ export default function Terminal() {
       const dir = e.shiftKey ? -1 : 1;
 
       if (tabCycle && lword.startsWith(tabCycle.base)) {
-        // Continue cycling through matches
+        // Continue cycling through stored matches (not freshly generated candidates)
+        const matches = tabCycle.matches;
         const next = tabCycle.idx === -1
-          ? (dir === 1 ? 0 : candidates.length - 1)
-          : (tabCycle.idx + dir + candidates.length) % candidates.length;
-        const picked = candidates[next];
+          ? (dir === 1 ? 0 : matches.length - 1)
+          : (tabCycle.idx + dir + matches.length) % matches.length;
+        const picked = matches[next];
         if (isCmd) setInput(picked + ' ');
         else { parts[parts.length - 1] = picked; setInput(parts.join(' ')); }
-        setTabCycle({ matches: candidates, idx: next, base: tabCycle.base });
+        setTabCycle({ matches, idx: next, base: tabCycle.base });
       } else {
         // First Tab: extend to common prefix, show options
         const common = longestCommonPrefix(candidates);
@@ -490,7 +522,7 @@ export default function Terminal() {
     if (e.key === 'Escape') {
       setTabCycle(null);
     }
-  }, [input, history, historyIndex, handleCommand, getCurrentFiles, cwd]);
+  }, [input, history, historyIndex, handleCommand, getCurrentFiles, cwd, tabCycle]);
 
   const resizeDirs = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 
@@ -517,9 +549,13 @@ export default function Terminal() {
             onClick={line.isInput ? undefined : handleOutputClick}
           />
         ))}
-        {tabCycle?.matches.length > 0 && (
+        {tabCycle && tabCycle.matches.length > 0 && (
           <div class="terminal-line" style="color:var(--overlay)">
-            {tabCycle.matches.join('  ')}
+            {tabCycle.matches.map((m, i) => (
+              <span key={i} style={i === tabCycle.idx ? 'color:var(--text);text-decoration:underline' : ''}>
+                {m}{'  '}
+              </span>
+            ))}
           </div>
         )}
         {ready && !viewer && (
@@ -530,7 +566,7 @@ export default function Terminal() {
               class="input-field"
               type="text"
               value={input}
-              onInput={(e) => setInput((e.target as HTMLInputElement).value)}
+              onInput={(e) => { setInput((e.target as HTMLInputElement).value); setTabCycle(null); }}
               onKeyDown={handleKeyDown}
               autoFocus
               spellcheck={false}

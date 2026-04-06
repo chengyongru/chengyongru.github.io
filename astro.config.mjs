@@ -51,7 +51,7 @@ export default defineConfig({
       {
         name: 'bypass-svg-metadata',
         enforce: 'pre',
-        async resolveId(id, importer) {
+        async resolveId(id, _importer) {
           if (id.includes('astroContentImageFlag') && id.includes('.svg')) {
             // Let Astro resolve the file path, then return a no-op module
             return null;

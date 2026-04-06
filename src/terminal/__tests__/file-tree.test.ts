@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // file-tree.ts uses module-level `index` and `fileSystem` variables.
 // We need to reset them between tests. We do this by re-importing the module.
 
-let buildFS: typeof import('../file-tree').buildFS;
 let listDir: typeof import('../file-tree').listDir;
 let getAllPosts: typeof import('../file-tree').getAllPosts;
 let getAllTags: typeof import('../file-tree').getAllTags;
@@ -18,7 +17,6 @@ let categorizeDir: typeof import('../file-tree').categorizeDir;
 async function reloadModule() {
   vi.resetModules();
   const mod = await import('../file-tree');
-  buildFS = mod.buildFS;
   listDir = mod.listDir;
   getAllPosts = mod.getAllPosts;
   getAllTags = mod.getAllTags;

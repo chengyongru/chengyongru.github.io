@@ -54,7 +54,8 @@ globalThis.DOMParser = vi.fn().mockImplementation(() => ({
 
 // Must import AFTER vi.mock
 import { executeCommand, getPrompt, getAllCommands } from '../commands';
-import { fetchPostContent as mockFetchPostContent } from '../file-tree';
+import { fetchPostContent as _fetchPostContent } from '../file-tree';
+const mockFetchPostContent = _fetchPostContent as unknown as ReturnType<typeof vi.fn>;
 
 function createMockCtx(overrides?: Partial<Record<string, any>>): any {
   const outputLines: string[] = [];

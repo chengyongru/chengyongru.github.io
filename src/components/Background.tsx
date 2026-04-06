@@ -19,14 +19,15 @@ export async function initBackground(): Promise<void> {
 
   // --- Geometry helpers ---
 
-  function rectIntervalForBand(rect, bandTop, bandBottom) {
+  function rectIntervalForBand(rect: DOMRect, bandTop: number, bandBottom: number): { left: number; right: number } | null {
     if (bandBottom <= rect.top - PAD || bandTop >= rect.bottom + PAD) return null;
     return { left: rect.left - PAD, right: rect.right + PAD };
   }
 
-  function carveSlots(base, blocked) {
+  function carveSlots(base: { left: number; right: number }, blocked: ({ left: number; right: number } | null)[]) {
     let slots = [base];
     for (const iv of blocked) {
+      if (!iv) continue;
       const next = [];
       for (const slot of slots) {
         if (iv.right <= slot.left || iv.left >= slot.right) { next.push(slot); continue; }
@@ -39,7 +40,7 @@ export async function initBackground(): Promise<void> {
   }
 
   /** Layout all lines for current viewport + terminal position */
-  function layoutAllLines(prepared, W, H, termRect) {
+  function layoutAllLines(prepared: Awaited<ReturnType<typeof prepareWithSegments>>, W: number, H: number, termRect: DOMRect | null) {
     const baseCol = { left: GUTTER, right: W - GUTTER };
     const allLines = [];
     let cursor = { segmentIndex: 0, graphemeIndex: 0 };
@@ -74,14 +75,14 @@ export async function initBackground(): Promise<void> {
   stage.className = 'bg-stage';
   document.body.prepend(stage);
 
-  let prepared = null;
+  let prepared: Awaited<ReturnType<typeof prepareWithSegments>> | null = null;
   let linePool: HTMLSpanElement[] = [];
-  let committed = null;
+  let committed: { x: number; y: number; text: string }[] | null = null;
   let rafId = 0;
 
   const font = `${FONT_SIZE}px "JetBrains Mono", monospace`;
 
-  function syncPool(pool, count) {
+  function syncPool(pool: HTMLSpanElement[], count: number) {
     while (pool.length < count) {
       const el = document.createElement('span');
       el.className = 'bg-line';
@@ -93,7 +94,7 @@ export async function initBackground(): Promise<void> {
     }
   }
 
-  function commitLines(allLines) {
+  function commitLines(allLines: { x: number; y: number; text: string }[]) {
     syncPool(linePool, allLines.length);
     for (let i = 0; i < allLines.length; i++) {
       const el = linePool[i], l = allLines[i];
@@ -109,7 +110,7 @@ export async function initBackground(): Promise<void> {
   // Cache key: terminal rect string + viewport size
   let lastCacheKey = '';
 
-  function render(now) {
+  function render(_now: number) {
     if (!prepared) { rafId = requestAnimationFrame(render); return; }
 
     const W = window.innerWidth;
@@ -128,9 +129,10 @@ export async function initBackground(): Promise<void> {
       const allLines = layoutAllLines(prepared, W, H, termRect);
 
       // Diff against committed to avoid unnecessary DOM writes
-      const changed = !committed || committed.length !== allLines.length ||
+      const prev = committed;
+      const changed = !prev || prev.length !== allLines.length ||
         allLines.some((l, i) => {
-          const p = committed[i];
+          const p = prev![i];
           return !p || p.x !== l.x || p.y !== l.y || p.text !== l.text;
         });
 

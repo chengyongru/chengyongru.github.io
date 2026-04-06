@@ -16,7 +16,7 @@ async function process(md: string): Promise<string> {
 async function processAst(md: string) {
   const tree = unified().use(remarkParse).parse(md);
   await unified().use(remarkObsidian).run(tree);
-  return tree;
+  return tree as any;
 }
 
 // ===== %%comments%% removal =====

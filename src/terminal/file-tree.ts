@@ -3,7 +3,7 @@
 // Loads content-index.json and provides file navigation
 // ============================================================
 
-import type { ContentIndex, FileEntry } from './types';
+import type { ContentIndex, FileEntry, PostMeta } from './types';
 import { shouldFilterSlug, BLOCKED_DIRS } from './constants';
 
 let index: ContentIndex | null = null;
@@ -32,7 +32,7 @@ export function buildFS(): Record<string, FileEntry[]> {
   const root: FileEntry[] = [];
   for (const [dir, desc] of Object.entries(index!.directories)) {
     const firstDir = dir.replace(/\/$/, '').toLowerCase();
-    if (BLOCKED_DIRS.includes(firstDir)) continue;
+    if ((BLOCKED_DIRS as readonly string[]).includes(firstDir)) continue;
     root.push({ name: dir, type: 'dir', desc });
   }
   const indexPost = index!.posts.find(p => p.slug === 'index');

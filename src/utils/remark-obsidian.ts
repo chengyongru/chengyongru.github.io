@@ -1,5 +1,5 @@
 import { visit } from 'unist-util-visit';
-import type { Root, Parent } from 'mdast';
+import type { Root, Parent, BlockContent } from 'mdast';
 
 /**
  * Remark plugin: unified Obsidian syntax transformations.
@@ -145,18 +145,18 @@ export function remarkObsidian() {
 
       if (isFoldable) {
         const summaryEl = {
-          type: 'html',
+          type: 'html' as const,
           value: `<summary>${icon} ${titleText}</summary>`,
         };
         node.children = [
-          { type: 'html', value: `<details${defaultOpen ? ' open' : ''}>` },
+          { type: 'html' as const, value: `<details${defaultOpen ? ' open' : ''}>` },
           summaryEl,
           ...bodyChildren,
-          { type: 'html', value: '</details>' },
-        ];
+          { type: 'html' as const, value: '</details>' },
+        ] as BlockContent[];
         node.data.hProperties = { 'data-callout': calloutType, 'data-callout-fold': '' };
       } else {
-        node.children = [titleEl, ...bodyChildren];
+        node.children = [titleEl, ...bodyChildren] as BlockContent[];
       }
     });
 

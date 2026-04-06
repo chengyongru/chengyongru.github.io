@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { ContentIndex } from '../types';
-import { categorizeDir, resolvePath, getPostUrl, buildFS } from '../file-tree';
+import { categorizeDir, resolvePath, getPostUrl } from '../file-tree';
 import { shouldFilterSlug } from '../constants';
 
 // ===== Pure Functions =====
@@ -269,7 +269,6 @@ describe('extractSlugFromHref (viewer navigation)', () => {
 
   it('decodes hash fragment too', () => {
     const href = '/blog/notebook/%E9%A2%91%E7%8E%87%E4%B8%8E%E8%B4%9D%E5%8F%B6%E6%96%AF/#%E9%A2%91%E7%8E%87%E5%AD%A6%E6%B4%BE';
-    const m = href.match(/^\/blog\/(.+?)(?:\/#|#|\/$|$)/);
     const hash = href.includes('#') ? decodeURIComponent(href.split('#')[1]) : null;
     expect(hash).toBe('频率学派');
   });

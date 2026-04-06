@@ -68,7 +68,7 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
         },
       });
 
-      mermaidBlocks.forEach((block, i) => {
+      mermaidBlocks.forEach((block) => {
         const id = `mermaid-${++mermaidIdCounter}`;
         const source = block.textContent || '';
         mermaid.render(id, source).then(({ svg }) => {
@@ -86,15 +86,16 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
     if (!bodyRef.current) return;
 
     const codeBlocks = bodyRef.current.querySelectorAll('pre.astro-code');
-    codeBlocks.forEach((pre: Element) => {
-      if (pre.querySelector('.copy-btn')) return;
+    codeBlocks.forEach((pre) => {
+      const htmlPre = pre as HTMLElement;
+      if (htmlPre.querySelector('.copy-btn')) return;
 
       const btn = document.createElement('button');
       btn.className = 'copy-btn';
       btn.textContent = 'Copy';
       btn.addEventListener('click', async () => {
-        const code = pre.querySelector('code');
-        const text = code?.textContent || pre.textContent || '';
+        const code = htmlPre.querySelector('code');
+        const text = code?.textContent || htmlPre.textContent || '';
         try {
           await navigator.clipboard.writeText(text);
           btn.textContent = 'Copied!';
@@ -104,8 +105,8 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
           setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
         }
       });
-      pre.style.position = 'relative';
-      pre.appendChild(btn);
+      htmlPre.style.position = 'relative';
+      htmlPre.appendChild(btn);
     });
   }, [html]);
 
