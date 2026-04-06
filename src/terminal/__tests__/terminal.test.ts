@@ -218,3 +218,59 @@ function buildFSWithIndex(index: ContentIndex) {
 
   return fs;
 }
+
+// ===== Viewer Navigation (Regression Test) =====
+
+/**
+ * Reproduces the slug-extraction regex from Terminal.tsx handleViewerNavigate.
+ * Tests this in isolation to prevent regression where hash-bearing URLs
+ * (e.g. /blog/notebook/foo#anchor) fell through to window.location.href
+ * instead of opening in the terminal viewer.
+ */
+function extractSlugFromHref(href: string): string | null {
+  const m = href.match(/^\/blog\/(.+?)(?:\/#|#|\/$|$)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+describe('extractSlugFromHref (viewer navigation)', () => {
+  it('extracts slug from standard /blog/{slug}/ URL', () => {
+    expect(extractSlugFromHref('/blog/notebook/arima/')).toBe('notebook/arima');
+  });
+
+  it('extracts slug from URL with #hash anchor (regression test)', () => {
+    // This was the regression: old regex /^\/blog\/(.+?)\/$/ did NOT match this
+    expect(extractSlugFromHref('/blog/notebook/频率与贝叶斯/#频率学派')).toBe('notebook/频率与贝叶斯');
+  });
+
+  it('extracts slug from URL with #hash and no trailing slash before #', () => {
+    expect(extractSlugFromHref('/blog/notebook/test#section')).toBe('notebook/test');
+  });
+
+  it('extracts slug from URL without trailing slash', () => {
+    expect(extractSlugFromHref('/blog/notebook/test')).toBe('notebook/test');
+  });
+
+  it('returns null for non-blog URLs', () => {
+    expect(extractSlugFromHref('/other/path')).toBeNull();
+    expect(extractSlugFromHref('https://example.com')).toBeNull();
+    expect(extractSlugFromHref('/')).toBeNull();
+  });
+
+  it('handles nested slugs correctly', () => {
+    expect(extractSlugFromHref('/blog/diary/2025-10-11/')).toBe('diary/2025-10-11');
+    expect(extractSlugFromHref('/blog/notebook/sub/dir/post#heading')).toBe('notebook/sub/dir/post');
+  });
+
+  it('decodes URL-encoded Chinese characters in slug (browser encodes href)', () => {
+    // Browser's getAttribute('href') returns URL-encoded strings for CJK chars
+    expect(extractSlugFromHref('/blog/notebook/%E9%A2%91%E7%8E%87%E4%B8%8E%E8%B4%9D%E5%8F%B6%E6%96%AF/#%E9%A2%91%E7%8E%87%E5%AD%A6%E6%B4%BE'))
+      .toBe('notebook/频率与贝叶斯');
+  });
+
+  it('decodes hash fragment too', () => {
+    const href = '/blog/notebook/%E9%A2%91%E7%8E%87%E4%B8%8E%E8%B4%9D%E5%8F%B6%E6%96%AF/#%E9%A2%91%E7%8E%87%E5%AD%A6%E6%B4%BE';
+    const m = href.match(/^\/blog\/(.+?)(?:\/#|#|\/$|$)/);
+    const hash = href.includes('#') ? decodeURIComponent(href.split('#')[1]) : null;
+    expect(hash).toBe('频率学派');
+  });
+});

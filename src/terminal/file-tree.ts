@@ -123,10 +123,12 @@ export async function fetchPostContent(slug: string): Promise<{ title: string; h
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const article = doc.querySelector('article');
     if (!article) return null;
+    // Read title BEFORE removing header (h1 lives inside .post-header)
+    const title = article.querySelector('h1')?.textContent || slug;
     article.querySelector('.post-header')?.remove();
     article.querySelector('.post-footer')?.remove();
     return {
-      title: article.querySelector('h1')?.textContent || slug,
+      title,
       html: article.innerHTML,
     };
   } catch {

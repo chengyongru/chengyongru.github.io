@@ -223,7 +223,7 @@ function cmdCAT(args: string[], ctx: CommandContext): void {
 
   fetchPostContent(post.slug).then(result => {
     if (result) {
-      ctx.openViewer(post.title, result.html);
+      ctx.openViewer(post.title, result.html, post.slug);
     } else {
       ctx.output(`<span style="color:var(--red)">Failed to load: ${esc(post.title)}</span>`);
     }
@@ -344,7 +344,7 @@ function cmdABOUT(ctx: CommandContext): void {
   ctx.output('<span style="color:var(--overlay)">Loading...</span>');
   fetchPostContent('index').then(result => {
     if (result) {
-      ctx.openViewer('About Me', result.html);
+      ctx.openViewer('About Me', result.html, 'index');
     } else {
       ctx.output('<span style="color:var(--red)">Failed to load about page.</span>');
     }

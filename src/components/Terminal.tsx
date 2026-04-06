@@ -17,6 +17,7 @@ interface OutputLine {
 interface ViewerState {
   title: string;
   html: string;
+  slug: string;
 }
 
 // Boot sequence
@@ -93,6 +94,12 @@ export default function Terminal() {
       document.documentElement.setAttribute('data-theme', savedTheme);
     }
 
+    // Check URL for a blog post to restore
+    const initialSlug = (() => {
+      const m = window.location.pathname.match(/^\/blog\/(.+?)\/?$/);
+      return m ? decodeURIComponent(m[1]) : null;
+    })();
+
     loadFileSystem().then(() => {
       // Check if user prefers reduced motion
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -119,6 +126,21 @@ export default function Terminal() {
           }
         };
         animate();
+      }
+
+      // Restore viewer from URL
+      if (initialSlug) {
+        fetchPostContent(initialSlug).then(result => {
+          if (result) {
+            setViewer({ title: result.title, html: result.html, slug: initialSlug });
+            document.title = `${result.title} | ChengYongru`;
+            // Use replaceState since this is restoring, not a new navigation
+            window.history.replaceState({ slug: initialSlug, title: result.title }, '', `/blog/${initialSlug}/`);
+          } else {
+            // Invalid slug, redirect to home
+            window.history.replaceState(null, '', '/');
+          }
+        });
       }
     });
   }, []);
@@ -185,6 +207,29 @@ export default function Terminal() {
     return () => body.removeEventListener('click', focusInput);
   }, []);
 
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const m = window.location.pathname.match(/^\/blog\/(.+?)\/?$/);
+      if (m) {
+        const slug = decodeURIComponent(m[1]);
+        fetchPostContent(slug).then(result => {
+          if (result) {
+            setViewer({ title: result.title, html: result.html, slug });
+            document.title = `${result.title} | ChengYongru`;
+          }
+        });
+      } else {
+        // Back to home — close viewer
+        setViewer(null);
+        document.title = "ChengYongru's Terminal";
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // --- Window management handlers ---
 
   const onTitleMouseDown = useCallback((e: MouseEvent) => {
@@ -238,21 +283,35 @@ export default function Terminal() {
     setLines(prev => [...prev, { html: `<span class="terminal-prompt">${getPrompt(cwd)}</span>${cmd}`, isInput: true }]);
   }, [cwd]);
 
-  const openViewer = useCallback((title: string, html: string) => {
-    setViewer({ title, html });
+  const openViewer = useCallback((title: string, html: string, slug: string) => {
+    setViewer({ title, html, slug });
+    // Sync URL to browser history
+    const url = `/blog/${slug}/`;
+    document.title = `${title} | ChengYongru`;
+    if (window.location.pathname !== url) {
+      window.history.pushState({ slug, title }, '', url);
+    }
   }, []);
 
   const handleViewerNavigate = useCallback((href: string) => {
-    // Extract slug from /blog/{slug}/
-    const m = href.match(/^\/blog\/(.+?)\/$/);
+    // Extract slug from /blog/{slug}/ or /blog/{slug}#hash
+    const m = href.match(/^\/blog\/(.+?)(?:\/#|#|\/$|$)/);
     if (!m) {
       window.location.href = href;
       return;
     }
-    const slug = m[1];
+    const slug = decodeURIComponent(m[1]);
+    const hash = href.includes('#') ? decodeURIComponent(href.split('#')[1]) : null;
     fetchPostContent(slug).then(result => {
       if (result) {
-        openViewer(result.title, result.html);
+        openViewer(result.title, result.html, slug);
+        // Scroll to anchor after content renders
+        if (hash) {
+          requestAnimationFrame(() => {
+            const target = document.querySelector(`#${CSS.escape(hash)}`);
+            target?.scrollIntoView({ behavior: 'smooth' });
+          });
+        }
       } else {
         window.location.href = href;
       }
@@ -487,6 +546,11 @@ export default function Terminal() {
           html={viewer.html}
           onClose={() => {
             setViewer(null);
+            // Restore URL to home
+            document.title = "ChengYongru's Terminal";
+            if (window.location.pathname !== '/') {
+              window.history.pushState(null, '', '/');
+            }
             requestAnimationFrame(() => inputRef.current?.focus());
           }}
           onNavigate={handleViewerNavigate}

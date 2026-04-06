@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
+import Terminal from '../../components/Terminal';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
@@ -32,7 +33,9 @@ const dateStr = post.data.date?.toISOString().split('T')[0] || '';
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
   </Fragment>
-  <article class="prose">
+  <Terminal client:load />
+  <!-- Hidden article for SEO crawlers (rendered server-side) -->
+  <article class="prose sr-only">
     <header class="post-header">
       <h1>{post.data.title || post.id}</h1>
       {post.data.date && (
@@ -49,13 +52,28 @@ const dateStr = post.data.date?.toISOString().split('T')[0] || '';
       )}
     </header>
     <Content />
-    <footer class="post-footer">
-      <a href="/">[ back to terminal ]</a>
-    </footer>
   </article>
 </BaseLayout>
 
+<script>
+import { initBackground } from '../../components/Background';
+initBackground();
+</script>
+
 <style>
+  /* Hidden from visual display but available to crawlers */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
   .prose {
     max-width: 800px;
     margin: 0 auto;
@@ -100,22 +118,5 @@ const dateStr = post.data.date?.toISOString().split('T')[0] || '';
     border-radius: 4px;
     font-size: 0.8em;
     border: 1px solid rgba(250, 179, 135, 0.15);
-  }
-
-  .post-footer {
-    margin-top: 3em;
-    padding-top: 1em;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    text-align: center;
-  }
-
-  .post-footer a {
-    color: var(--subtext);
-    font-size: 0.85em;
-    transition: color 0.15s;
-  }
-
-  .post-footer a:hover {
-    color: var(--accent);
   }
 </style>

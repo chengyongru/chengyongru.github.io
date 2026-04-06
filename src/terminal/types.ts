@@ -33,7 +33,7 @@ export interface CommandContext {
   cwd: string;
   output: (html: string, className?: string) => void;
   appendInputLine: (cmd: string) => void;
-  openViewer: (title: string, html: string) => void;
+  openViewer: (title: string, html: string, slug: string) => void;
   getCurrentFiles: () => FileEntry[];
   setCwd: (path: string) => void;
   _history?: string[];
