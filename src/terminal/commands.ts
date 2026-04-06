@@ -21,6 +21,14 @@ function esc(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/** Extract clean display name: if title looks like a slug (contains /), use filename portion */
+function displayName(title: string, fallback: string): string {
+  if (title && !title.includes('/')) return title;
+  // Slug-like title or empty — extract basename, strip .md extension
+  const base = (title || fallback).replace(/^.*\//, '').replace(/\.md$/i, '');
+  return base || fallback;
+}
+
 export function getPrompt(cwd: string): string {
   if (cwd === '/') return 'visitor@chengyongru:~$ ';
   const dir = cwd.replace(/^\//, '').replace(/\/$/, '');
@@ -108,11 +116,10 @@ function cmdLS(args: string[], ctx: CommandContext): void {
   for (const f of pageFiles) {
     if (f.type === 'dir') {
       output += `<div style="display:flex;gap:12px;"><span class="clickable-dir" data-action="cd" data-path="${targetDir}${f.name}" style="min-width:180px;display:inline-block;">${esc(f.name)}</span><span style="color:var(--overlay);flex:1;">${esc(f.desc || '')}</span></div>`;
-    } else if (f.title) {
+    } else if (f.title || f.name) {
       const tagsHtml = f.tags ? f.tags.map(t => `<span style="background:var(--surface);color:var(--blue);padding:1px 6px;border-radius:3px;font-size:0.8em;">${esc(t)}</span>`).join(' ') : '';
-      output += `<div style="display:flex;gap:12px;align-items:baseline;"><span class="clickable-file" data-action="cat" data-slug="${f.slug || ''}" style="min-width:280px;display:inline-block;">${esc(f.name)}</span><span style="color:var(--overlay);min-width:90px;flex-shrink:0;">${f.date ? f.date.split('T')[0] : ''}</span><span>${tagsHtml}</span></div>`;
-    } else {
-      output += `<div style="display:flex;gap:12px;"><span class="clickable-file" data-action="cat" data-slug="${f.slug || ''}" style="min-width:180px;display:inline-block;">${esc(f.name)}</span><span style="color:var(--overlay);flex:1;">${esc(f.desc || '')}</span></div>`;
+      const name = displayName(f.title, f.name);
+      output += `<div style="display:flex;gap:12px;align-items:baseline;"><span class="clickable-file" data-action="cat" data-slug="${f.slug || ''}" style="min-width:280px;display:inline-block;">${esc(name)}</span><span style="color:var(--overlay);min-width:90px;flex-shrink:0;">${f.date ? f.date.split('T')[0] : ''}</span><span>${tagsHtml}</span></div>`;
     }
   }
 

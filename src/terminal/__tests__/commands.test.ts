@@ -239,7 +239,7 @@ describe('cmdLS', () => {
     const output = ctx.output.mock.calls[0][0];
     expect(output).toContain('notebook/');
     expect(output).toContain('diary/');
-    expect(output).toContain('index.md');
+    expect(output).toContain('随笔');
   });
 
   it('should list subdirectory', () => {
@@ -247,7 +247,7 @@ describe('cmdLS', () => {
     executeCommand('ls notebook/', ctx);
 
     const output = ctx.output.mock.calls[0][0];
-    expect(output).toContain('ARIMA.md');
+    expect(output).toContain('ARIMA');
   });
 
   it('should report error for non-existent directory', () => {
