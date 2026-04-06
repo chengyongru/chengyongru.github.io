@@ -276,7 +276,8 @@ export default function Terminal() {
     if (action === 'cat') {
       const slug = clickable.dataset.slug;
       if (slug) {
-        executeCommand(`cat ${slug}`, {
+        const quotedSlug = slug.includes('"') ? slug : `"${slug}"`;
+        executeCommand(`cat ${quotedSlug}`, {
           cwd,
           output,
           appendInputLine,

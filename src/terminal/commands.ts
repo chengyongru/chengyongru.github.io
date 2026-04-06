@@ -44,7 +44,8 @@ export function executeCommand(
 
   const parts = cmd.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
   const command = parts[0]?.toLowerCase();
-  const args = parts.slice(1);
+  // Strip surrounding quotes from arguments (allows filenames with spaces)
+  const args = parts.slice(1).map(a => a.replace(/^"|"$/g, ''));
 
   switch (command) {
     case 'ls': cmdLS(args, ctx); break;

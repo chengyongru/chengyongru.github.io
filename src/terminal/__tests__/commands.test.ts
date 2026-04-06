@@ -11,6 +11,7 @@ const mockIndex: ContentIndex = {
     { slug: 'diary/2025-10-11', title: 'Diary Entry', date: '2025-10-11', tags: ['diary'], reading_time: 3 },
     { slug: 'notebook/Dropout', title: 'Dropout Techniques', date: '2025-02-20', tags: ['ML', 'deep-learning'], reading_time: 8 },
     { slug: 'notebook/KL散度', title: 'KL Divergence', date: '2025-03-01', tags: ['ML', 'math'], reading_time: 6 },
+    { slug: 'notebook/git bare worktree workflow', title: 'git bare worktree workflow', date: '2026-01-22', tags: ['git'], reading_time: 3 },
   ],
   tags: ['ML', 'diary', 'time-series', 'deep-learning', 'math'],
   directories: { 'notebook/': 'Notes', 'diary/': 'Journal' },
@@ -205,6 +206,12 @@ describe('cmdCAT', () => {
     ctx.cwd = '/diary/';
     executeCommand('cat ../notebook/ARIMA', ctx);
     // resolvePath(/diary/, ../notebook/ARIMA) → /notebook/ARIMA
+    expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining('Loading'));
+  });
+
+  it('should handle filenames with spaces via quoted arguments', () => {
+    const ctx = createMockCtx();
+    executeCommand('cat "notebook/git bare worktree workflow"', ctx);
     expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining('Loading'));
   });
 });

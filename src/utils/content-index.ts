@@ -92,10 +92,33 @@ export async function generateContentIndex(posts: CollectionEntry<'blog'>[]): Pr
   // Sort by date descending
   allPosts.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
+  // Build background text: first ~300 chars from each post, concatenated
+  const backgroundParts: string[] = [];
+  let bgLen = 0;
+  const BG_MAX = 8000;
+  const SNIPPET_LEN = 500;
+  for (const post of allPosts) {
+    if (bgLen >= BG_MAX) break;
+    let snippet = (post.text || '').replace(/\n+/g, ' ').slice(0, SNIPPET_LEN);
+    // Strip LaTeX: $...$, $$...$$, \(\), \[\], and common commands
+    snippet = snippet.replace(/\$\$[\s\S]*?\$\$/g, '');
+    snippet = snippet.replace(/\$[^\$\n]+?\$/g, '');
+    snippet = snippet.replace(/\\[\(\)][^\\]*?\\[\)\)]/g, '');
+    snippet = snippet.replace(/\\[[\s\S]*?\\]/g, '');
+    snippet = snippet.replace(/\\(frac|sum|prod|int|sqrt|lim|alpha|beta|gamma|delta|theta|lambda|mu|sigma|phi|omega|infty|partial|nabla|pm|mp|times|div|cdot|leq|geq|neq|approx|equiv|sim|subset|supset|cup|cap|in|notin|forall|exists|emptyset|varnothing|nabla|ldots|cdots|vdots|ddots)[\s{]*/g, '');
+    snippet = snippet.trim();
+    if (snippet.length > 20) {
+      backgroundParts.push(snippet);
+      bgLen += snippet.length;
+    }
+  }
+  const backgroundText = backgroundParts.join(' ').slice(0, BG_MAX);
+
   return {
     posts: allPosts,
     tags: [...tagSet].sort(),
     directories,
+    backgroundText,
   };
 }
 

@@ -6,8 +6,10 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  z-index: 1;
   box-shadow:
     0 25px 80px rgba(0, 0, 0, 0.6),
+    0 0 60px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.05);
   transition: border-radius 0.2s, box-shadow 0.2s;
 }

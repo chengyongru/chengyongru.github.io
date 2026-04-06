@@ -26,6 +26,7 @@ export interface ContentIndex {
   posts: PostMeta[];
   tags: string[];
   directories: Record<string, string>; // dir slug -> description
+  backgroundText?: string; // concatenated first ~300 chars from each post for background effect
 }
 
 export interface CommandContext {

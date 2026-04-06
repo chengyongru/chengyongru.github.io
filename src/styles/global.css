@@ -194,3 +194,31 @@ html {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ===== Background Text Flow ===== */
+.bg-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bg-line {
+  position: absolute;
+  white-space: pre;
+  font-size: 14px;
+  line-height: 26px;
+  letter-spacing: 0.3px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--subtext);
+  opacity: 0.12;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (max-width: 768px) {
+  .bg-stage {
+    display: none;
+  }
+}
