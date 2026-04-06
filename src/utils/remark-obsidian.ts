@@ -17,7 +17,7 @@ const CALLOUT_ICONS: Record<string, string> = {
   note: '\u2139\uFE0F', tip: '\uD83D\uDCA1', summary: '\uD83D\uDCCB', seealso: '\uD83D\uDD17',
   abstract: '\uD83D\uDCDD', info: '\u2139\uFE0F', todo: '\u2611\uFE0F', warning: '\u26A0\uFE0F',
   danger: '\uD83D\uDEAB', bug: '\uD83D\uDC1B', example: '\uD83D\uDCA1', quote: '\uD83D\uDCAC',
-  success: '\u2705', question: '\u2753', failure: '\u274C',
+  success: '\u2705', question: '\u2753', failure: '\u274C', theorem: '\u25B3',
 };
 
 /**
@@ -105,7 +105,7 @@ export function remarkObsidian() {
       const firstText = firstChild.children?.[0];
       if (!firstText || firstText.type !== 'text') return;
 
-      const match = firstText.value.match(/^\[!(\w+)\]([+-]?)\s*([\s\S]*)/);
+      const match = firstText.value.match(/^\[!(\w+)\]([+-]?)[ \t]*([\s\S]*)/);
       if (!match) return;
 
       const [, type, fold, rest] = match;
@@ -135,9 +135,13 @@ export function remarkObsidian() {
       };
 
       const otherChildren = node.children.slice(1);
+      // Remaining inline elements in the declaration paragraph (handles markdown lazy continuation
+      // where body content stays in the same paragraph as the [!type] line)
+      const remainingInline = firstChild.children.slice(1);
+
       const bodyChildren = bodyText
-        ? [{ type: 'paragraph' as const, children: [{ type: 'text' as const, value: bodyText }] }, ...otherChildren]
-        : otherChildren;
+        ? [{ type: 'paragraph' as const, children: [{ type: 'text' as const, value: bodyText }] }, ...otherChildren, ...remainingInline]
+        : [...otherChildren, ...remainingInline];
 
       if (isFoldable) {
         const summaryEl = {

@@ -122,8 +122,8 @@
   border: none;
 }
 
-/* Blockquote */
-.prose blockquote {
+/* Blockquote (excludes callouts which have their own styling) */
+.prose blockquote:not([data-callout]) {
   border-left: 3px solid var(--green);
   padding: 10px 16px;
   color: var(--subtext);
@@ -132,7 +132,7 @@
   border-radius: 0 6px 6px 0;
 }
 
-.prose blockquote p:last-child {
+.prose blockquote:not([data-callout]) p:last-child {
   margin-bottom: 0;
 }
 
@@ -242,146 +242,187 @@
   font-size: 1.05em;
 }
 
-/* Callouts (Obsidian syntax) - using data attributes */
+/* ===== Callouts (Obsidian syntax) — data attributes ===== */
+
+/*
+ * Structure: <blockquote data-callout="{type}"> rendered by remark-obsidian.ts
+ * Mirrors Obsidian's native callout styling:
+ *   - Left accent bar (2px) via border-left
+ *   - Asymmetric padding (extra left space for accent bar clearance)
+ *   - 10% opacity background tint per type
+ *   - Title row: icon + text, colored by accent
+ *   - Collapsible: <details>/<summary> with chevron rotation
+ */
+
+/* Base callout — matches Obsidian's .callout container */
 .prose [data-callout] {
-  padding: 12px 16px;
-  border-radius: 8px;
+  --callout-accent: var(--overlay);
+  --callout-bg: rgba(255, 255, 255, 0.05);
+
+  padding: 12px 12px 12px 24px;
   margin-bottom: 1em;
-  border-left: 3px solid var(--overlay);
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  border: none;
+  border-left: 2px solid var(--callout-accent);
+  background: var(--callout-bg);
+  line-height: 1.6;
 }
 
-.prose p[data-callout-title] {
-  font-weight: 700;
-  font-size: 0.95em;
-  margin-bottom: 6px;
+.prose [data-callout] > *:first-child {
+  margin-top: 0;
 }
-
-.prose [data-callout] p:last-child {
+.prose [data-callout] > *:last-child {
   margin-bottom: 0;
 }
 
-/* Note / Info */
-.prose div[data-callout="note"],
-.prose div[data-callout="info"] {
-  border-left-color: var(--blue);
-  background: rgba(137, 180, 250, 0.06);
+/* Callout title row — matches Obsidian's .callout-title */
+.prose [data-callout] p[data-callout-title] {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 1em;
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+  color: var(--callout-accent);
 }
 
-.prose div[data-callout="note"] p[data-callout-title],
-.prose div[data-callout="info"] p[data-callout-title] {
-  color: var(--blue);
+/* Body content slightly dimmed vs title (Obsidian behavior) */
+.prose [data-callout] > :not(p[data-callout-title]):not(details):not(summary) {
+  opacity: 0.9;
 }
 
-/* Tip / Success */
-.prose div[data-callout="tip"],
-.prose div[data-callout="success"] {
-  border-left-color: var(--green);
-  background: rgba(166, 227, 161, 0.06);
+/* ── Type-specific colors (mapped to Obsidian's palette) ── */
+
+/* Note / Info — blue */
+.prose [data-callout="note"],
+.prose [data-callout="info"] {
+  --callout-accent: var(--blue);
+  --callout-bg: rgba(137, 180, 250, 0.1);
 }
 
-.prose div[data-callout="tip"] p[data-callout-title],
-.prose div[data-callout="success"] p[data-callout-title] {
-  color: var(--green);
+/* Tip — cyan/sky (Obsidian maps tip to a distinct teal-blue) */
+.prose [data-callout="tip"] {
+  --callout-accent: var(--teal);
+  --callout-bg: rgba(148, 226, 213, 0.1);
 }
 
-/* Summary / Abstract */
-.prose div[data-callout="summary"],
-.prose div[data-callout="abstract"] {
-  border-left-color: var(--mauve);
-  background: rgba(203, 166, 247, 0.06);
+/* Success — green */
+.prose [data-callout="success"] {
+  --callout-accent: var(--green);
+  --callout-bg: rgba(166, 227, 161, 0.1);
 }
 
-.prose div[data-callout="summary"] p[data-callout-title],
-.prose div[data-callout="abstract"] p[data-callout-title] {
-  color: var(--mauve);
+/* Summary / Abstract / Tldr — muted blue-purple */
+.prose [data-callout="summary"],
+.prose [data-callout="abstract"],
+.prose [data-callout="tldr"] {
+  --callout-accent: var(--lavender);
+  --callout-bg: rgba(180, 190, 254, 0.1);
 }
 
-/* Seealso / Question */
-.prose div[data-callout="seealso"],
-.prose div[data-callout="question"] {
-  border-left-color: var(--teal);
-  background: rgba(148, 226, 213, 0.06);
+/* Seealso — blue */
+.prose [data-callout="seealso"] {
+  --callout-accent: var(--blue);
+  --callout-bg: rgba(137, 180, 250, 0.1);
 }
 
-.prose div[data-callout="seealso"] p[data-callout-title],
-.prose div[data-callout="question"] p[data-callout-title] {
-  color: var(--teal);
+/* Question — gold/yellow (Obsidian maps question to a sage-green, approximated with yellow) */
+.prose [data-callout="question"] {
+  --callout-accent: var(--yellow);
+  --callout-bg: rgba(249, 226, 175, 0.1);
 }
 
-/* Warning */
-.prose div[data-callout="warning"] {
-  border-left-color: var(--yellow);
-  background: rgba(249, 226, 175, 0.06);
+/* Warning — gold/yellow */
+.prose [data-callout="warning"] {
+  --callout-accent: var(--yellow);
+  --callout-bg: rgba(249, 226, 175, 0.1);
 }
 
-.prose div[data-callout="warning"] p[data-callout-title] {
-  color: var(--yellow);
+/* Danger — red/coral */
+.prose [data-callout="danger"] {
+  --callout-accent: var(--red);
+  --callout-bg: rgba(243, 139, 168, 0.1);
 }
 
-/* Danger / Failure / Bug */
-.prose div[data-callout="danger"],
-.prose div[data-callout="failure"],
-.prose div[data-callout="bug"] {
-  border-left-color: var(--red);
-  background: rgba(243, 139, 168, 0.06);
+/* Bug — darker red/crimson */
+.prose [data-callout="bug"] {
+  --callout-accent: var(--red);
+  --callout-bg: rgba(243, 139, 168, 0.1);
 }
 
-.prose div[data-callout="danger"] p[data-callout-title],
-.prose div[data-callout="failure"] p[data-callout-title],
-.prose div[data-callout="bug"] p[data-callout-title] {
-  color: var(--red);
+/* Failure — rust/orange-red */
+.prose [data-callout="failure"] {
+  --callout-accent: var(--peach);
+  --callout-bg: rgba(250, 179, 135, 0.1);
 }
 
-/* Todo */
-.prose div[data-callout="todo"] {
-  border-left-color: var(--peach);
-  background: rgba(250, 179, 135, 0.06);
+/* Todo — blue (Obsidian maps todo to same as note) */
+.prose [data-callout="todo"] {
+  --callout-accent: var(--blue);
+  --callout-bg: rgba(137, 180, 250, 0.1);
 }
 
-.prose div[data-callout="todo"] p[data-callout-title] {
-  color: var(--peach);
+/* Example — mauve/purple */
+.prose [data-callout="example"] {
+  --callout-accent: var(--mauve);
+  --callout-bg: rgba(203, 166, 247, 0.1);
 }
 
-/* Example */
-.prose div[data-callout="example"] {
-  border-left-color: var(--sky);
-  background: rgba(137, 220, 235, 0.06);
+/* Quote — neutral gray */
+.prose [data-callout="quote"] {
+  --callout-accent: var(--overlay);
+  --callout-bg: rgba(108, 112, 134, 0.1);
 }
 
-.prose div[data-callout="example"] p[data-callout-title] {
-  color: var(--sky);
+/* Theorem — lavender */
+.prose [data-callout="theorem"] {
+  --callout-accent: var(--lavender);
+  --callout-bg: rgba(180, 190, 254, 0.1);
 }
 
-/* Collapsible callouts */
-.prose div[data-callout-fold] > details {
+/* ── Collapsible callouts (Obsidian: > [!type]+ / > [!type]-) ── */
+
+.prose [data-callout-fold] > details {
   border: none;
   padding: 0;
   margin: 0;
   background: none;
 }
 
-.prose div[data-callout-fold] summary {
+.prose [data-callout-fold] summary {
   cursor: pointer;
-  color: var(--text);
-  font-weight: 700;
-  font-size: 0.95em;
+  color: var(--callout-accent, var(--text));
+  font-weight: 600;
+  font-size: 1em;
+  line-height: 1.3;
   list-style: none;
   padding: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  user-select: none;
+  outline: none;
+}
+.prose [data-callout-fold] summary:hover {
+  opacity: 0.8;
+}
+.prose [data-callout-fold] summary::-webkit-details-marker,
+.prose [data-callout-fold] summary::marker {
+  content: '';
 }
 
-.prose div[data-callout-fold] summary::-webkit-details-marker {
-  display: none;
-}
-
-.prose div[data-callout-fold] summary::before {
-  content: '\25B6 ';
+/* Chevron indicator — small triangle matching Obsidian's chevron */
+.prose [data-callout-fold] summary::before {
+  content: '\25B8';
   font-size: 0.7em;
-  display: inline-block;
-  transition: transform 0.15s;
+  flex-shrink: 0;
+  transition: transform 100ms ease-in-out;
+  margin-top: 0.2em;
+  color: var(--callout-accent, currentColor);
 }
 
-.prose div[data-callout-fold] details[open] > summary::before {
+.prose [data-callout-fold] details[open] > summary::before {
   transform: rotate(90deg);
 }
 
