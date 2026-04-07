@@ -215,6 +215,15 @@ html {
   opacity: 0.12;
   user-select: none;
   -webkit-user-select: none;
+  contain: layout style;
+}
+
+/* Active spotlight state: constant properties set once via class toggle */
+.bg-line.spotlit {
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 1;
 }
 
 @media (max-width: 768px) {
