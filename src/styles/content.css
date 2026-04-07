@@ -554,6 +554,15 @@
   transition: background 0.3s;
 }
 
+/* Vim search highlight */
+.prose mark.vim-search-match {
+  background: rgba(249, 226, 175, 0.35);
+  color: inherit;
+  padding: 1px 2px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(249, 226, 175, 0.5);
+}
+
 /* ===== Mobile Content Adjustments ===== */
 @media (max-width: 768px) {
   .prose {

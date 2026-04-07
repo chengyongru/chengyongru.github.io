@@ -198,8 +198,60 @@
   color: var(--overlay);
   font-size: 12px;
   text-align: center;
-  padding: 8px 0;
+  padding: 8px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.viewer-hint kbd {
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--subtext);
+}
+
+/* ===== Vim Search Bar ===== */
+.vim-search-bar {
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  background: var(--surface);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.vim-search-prompt {
+  color: var(--green);
+  font-size: 14px;
+  margin-right: 6px;
+  user-select: none;
+}
+
+.vim-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  caret-color: var(--text);
+  padding: 0;
+}
+
+.vim-search-info {
+  color: var(--subtext);
+  font-size: 12px;
+  margin-left: 8px;
+  user-select: none;
+  white-space: nowrap;
 }
 
 /* ===== Resize Handles ===== */
