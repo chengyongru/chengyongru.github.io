@@ -479,7 +479,8 @@ export default function Terminal() {
             ...dirMatches.map(f => dirPart + f.name),
             ...fileMatches.map(f => {
               const display = f.title || f.name.replace(/\.md$/i, '');
-              return dirPart + (display.includes(' ') ? `"${display}"` : display);
+              const fullName = dirPart + display;
+              return fullName.includes(' ') ? `"${fullName}"` : fullName;
             }),
           ];
         }
