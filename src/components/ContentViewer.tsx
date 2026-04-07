@@ -103,6 +103,7 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
   const [searchQuery, setSearchQuery] = useState('');
   const matchElementsRef = useRef<HTMLElement[]>([]);
   const matchIndexRef = useRef(-1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // gg double-press detection
   const gBufferRef = useRef<number | null>(null);
@@ -160,6 +161,32 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
     if (bodyRef.current) clearHighlights(bodyRef.current);
   }, []);
 
+  // Apply search highlights immediately (bypass debounce). Returns match count.
+  const applyHighlightImmediate = useCallback((query: string) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (!bodyRef.current || !query) return 0;
+    matchElementsRef.current = highlightMatches(bodyRef.current, query);
+    matchIndexRef.current = -1;
+    return matchElementsRef.current.length;
+  }, []);
+
+  // Close search bar but keep highlights (vim Enter behavior)
+  const commitSearch = useCallback(() => {
+    if (bodyRef.current) {
+      applyHighlightImmediate(searchQuery);
+      // Jump to first match
+      if (matchElementsRef.current.length > 0) {
+        matchIndexRef.current = 0;
+        matchElementsRef.current[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    setSearchOpen(false);
+    // Keep matchElementsRef so n/N can navigate
+  }, [searchQuery, applyHighlightImmediate]);
+
   // Search query changed — re-highlight (debounced 150ms)
   useEffect(() => {
     if (!bodyRef.current) return;
@@ -180,13 +207,17 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
         matchElementsRef.current[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }, 150);
-    return () => clearTimeout(timer);
+    debounceRef.current = timer;
+    return () => {
+      clearTimeout(timer);
+      if (debounceRef.current === timer) debounceRef.current = null;
+    };
   }, [searchQuery, searchOpen]);
 
   // Keyboard handler — vim keybindings
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // If search is open, only handle search-specific keys
+      // Search mode keys
       if (searchOpen) {
         if (e.key === 'Escape') {
           e.preventDefault();
@@ -195,8 +226,18 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
         }
         if (e.key === 'Enter') {
           e.preventDefault();
-          // Jump to next match (same as n)
+          commitSearch();
+          return;
+        }
+        // n/N work in both search and normal mode
+        if (e.key === 'n' && matchElementsRef.current.length > 0) {
+          e.preventDefault();
           scrollToMatch('next');
+          return;
+        }
+        if (e.key === 'N' && matchElementsRef.current.length > 0) {
+          e.preventDefault();
+          scrollToMatch('prev');
           return;
         }
         // Don't intercept typing in search input
@@ -284,12 +325,14 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
 
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
+    // Fix Bug 1: focus viewer body so keydown events dispatch after terminal input is removed
+    bodyRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
       document.querySelector<HTMLInputElement>('.input-field')?.focus();
     };
-  }, [onClose, searchOpen, closeSearch, scrollToMatch, openSearch]);
+  }, [onClose, searchOpen, closeSearch, commitSearch, scrollToMatch, openSearch]);
 
   // Scroll to top when content changes
   useEffect(() => {
@@ -426,6 +469,7 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
         <div
           class="viewer-body prose"
           ref={bodyRef}
+          tabIndex={-1}
           dangerouslySetInnerHTML={{ __html: html }}
         />
         {searchOpen && (
