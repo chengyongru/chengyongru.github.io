@@ -325,14 +325,17 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
 
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
-    // Fix Bug 1: focus viewer body so keydown events dispatch after terminal input is removed
-    bodyRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
       document.querySelector<HTMLInputElement>('.input-field')?.focus();
     };
   }, [onClose, searchOpen, closeSearch, commitSearch, scrollToMatch, openSearch]);
+
+  // Focus viewer body on mount so keyboard events dispatch
+  useEffect(() => {
+    bodyRef.current?.focus();
+  }, []);
 
   // Scroll to top when content changes
   useEffect(() => {
