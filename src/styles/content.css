@@ -23,7 +23,7 @@
   margin-bottom: 0.5em;
   font-weight: 700;
   padding-bottom: 0.3em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--surface1) 40%, transparent);
   letter-spacing: -0.01em;
 }
 
@@ -100,7 +100,7 @@
   border-radius: 4px;
   font-size: 0.88em;
   color: var(--peach);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid color-mix(in srgb, var(--surface1) 40%, transparent);
 }
 
 /* Code blocks — left accent bar for visual distinction */
@@ -110,7 +110,7 @@
   border-radius: 8px;
   overflow-x: auto;
   margin-bottom: 1.2em;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid color-mix(in srgb, var(--surface1) 30%, transparent);
   border-left: 3px solid var(--overlay);
 }
 
@@ -128,7 +128,7 @@
   padding: 10px 16px;
   color: var(--subtext);
   margin-bottom: 1em;
-  background: rgba(166, 227, 161, 0.04);
+  background: color-mix(in srgb, var(--green) 4%, transparent);
   border-radius: 0 6px 6px 0;
 }
 
@@ -189,23 +189,23 @@
   font-weight: 700;
   text-align: left;
   padding: 8px 12px;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid var(--surface1);
 }
 
 .prose td {
   padding: 6px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid color-mix(in srgb, var(--surface1) 30%, transparent);
 }
 
 .prose tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--surface1) 15%, transparent);
 }
 
 /* Horizontal rule — subtle gradient */
 .prose hr {
   border: none;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface1) 50%, transparent), transparent);
   margin: 2em 0;
 }
 
@@ -213,7 +213,7 @@
 .prose img {
   border-radius: 8px;
   margin: 1.2em 0;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid color-mix(in srgb, var(--surface1) 40%, transparent);
   display: block;
   max-width: 100%;
 }
@@ -225,7 +225,7 @@
 
 /* Obsidian ==highlights== */
 .prose mark {
-  background: rgba(249, 226, 175, 0.3);
+  background: color-mix(in srgb, var(--yellow) 30%, transparent);
   color: var(--yellow);
   padding: 1px 4px;
   border-radius: 3px;
@@ -257,7 +257,7 @@
 /* Base callout — matches Obsidian's .callout container */
 .prose [data-callout] {
   --callout-accent: var(--overlay);
-  --callout-bg: rgba(255, 255, 255, 0.05);
+  --callout-bg: color-mix(in srgb, var(--callout-accent) 10%, transparent);
 
   padding: 12px 12px 12px 24px;
   margin-bottom: 1em;
@@ -298,19 +298,16 @@
 .prose [data-callout="note"],
 .prose [data-callout="info"] {
   --callout-accent: var(--blue);
-  --callout-bg: rgba(137, 180, 250, 0.1);
 }
 
 /* Tip — cyan/sky (Obsidian maps tip to a distinct teal-blue) */
 .prose [data-callout="tip"] {
   --callout-accent: var(--teal);
-  --callout-bg: rgba(148, 226, 213, 0.1);
 }
 
 /* Success — green */
 .prose [data-callout="success"] {
   --callout-accent: var(--green);
-  --callout-bg: rgba(166, 227, 161, 0.1);
 }
 
 /* Summary / Abstract / Tldr — muted blue-purple */
@@ -318,67 +315,56 @@
 .prose [data-callout="abstract"],
 .prose [data-callout="tldr"] {
   --callout-accent: var(--lavender);
-  --callout-bg: rgba(180, 190, 254, 0.1);
 }
 
 /* Seealso — blue */
 .prose [data-callout="seealso"] {
   --callout-accent: var(--blue);
-  --callout-bg: rgba(137, 180, 250, 0.1);
 }
 
 /* Question — gold/yellow (Obsidian maps question to a sage-green, approximated with yellow) */
 .prose [data-callout="question"] {
   --callout-accent: var(--yellow);
-  --callout-bg: rgba(249, 226, 175, 0.1);
 }
 
 /* Warning — gold/yellow */
 .prose [data-callout="warning"] {
   --callout-accent: var(--yellow);
-  --callout-bg: rgba(249, 226, 175, 0.1);
 }
 
 /* Danger — red/coral */
 .prose [data-callout="danger"] {
   --callout-accent: var(--red);
-  --callout-bg: rgba(243, 139, 168, 0.1);
 }
 
 /* Bug — darker red/crimson */
 .prose [data-callout="bug"] {
   --callout-accent: var(--red);
-  --callout-bg: rgba(243, 139, 168, 0.1);
 }
 
 /* Failure — rust/orange-red */
 .prose [data-callout="failure"] {
   --callout-accent: var(--peach);
-  --callout-bg: rgba(250, 179, 135, 0.1);
 }
 
 /* Todo — blue (Obsidian maps todo to same as note) */
 .prose [data-callout="todo"] {
   --callout-accent: var(--blue);
-  --callout-bg: rgba(137, 180, 250, 0.1);
 }
 
 /* Example — mauve/purple */
 .prose [data-callout="example"] {
   --callout-accent: var(--mauve);
-  --callout-bg: rgba(203, 166, 247, 0.1);
 }
 
 /* Quote — neutral gray */
 .prose [data-callout="quote"] {
   --callout-accent: var(--overlay);
-  --callout-bg: rgba(108, 112, 134, 0.1);
 }
 
 /* Theorem — lavender */
 .prose [data-callout="theorem"] {
   --callout-accent: var(--lavender);
-  --callout-bg: rgba(180, 190, 254, 0.1);
 }
 
 /* ── Collapsible callouts (Obsidian: > [!type]+ / > [!type]-) ── */
@@ -440,7 +426,7 @@
 
 .prose details {
   margin-bottom: 1em;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid color-mix(in srgb, var(--surface1) 40%, transparent);
   border-radius: 6px;
   padding: 8px 12px;
 }
@@ -454,7 +440,7 @@
 .prose details[open] summary {
   margin-bottom: 6px;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--surface1) 40%, transparent);
 }
 
 .prose details blockquote {
@@ -489,7 +475,7 @@
   right: 8px;
   background: var(--surface);
   color: var(--subtext);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid color-mix(in srgb, var(--surface1) 50%, transparent);
   border-radius: 4px;
   padding: 2px 8px;
   font-size: 0.75em;
@@ -505,14 +491,14 @@
 
 .prose .copy-btn:hover {
   color: var(--text);
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: var(--surface1);
 }
 
 /* GFM Footnotes */
 .prose .footnotes {
   margin-top: 2em;
   padding-top: 1em;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid color-mix(in srgb, var(--surface1) 40%, transparent);
   font-size: 0.85em;
   color: var(--subtext);
 }
@@ -549,18 +535,18 @@
 
 .prose :target.footnote-backref,
 .prose .footnotes :target {
-  background: rgba(137, 180, 250, 0.15);
+  background: color-mix(in srgb, var(--blue) 15%, transparent);
   border-radius: 3px;
   transition: background 0.3s;
 }
 
 /* Vim search highlight */
 .prose mark.vim-search-match {
-  background: rgba(249, 226, 175, 0.35);
+  background: color-mix(in srgb, var(--yellow) 35%, transparent);
   color: inherit;
   padding: 1px 2px;
   border-radius: 2px;
-  box-shadow: 0 0 0 1px rgba(249, 226, 175, 0.5);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--yellow) 50%, transparent);
 }
 
 /* ===== Mobile Content Adjustments ===== */

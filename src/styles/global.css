@@ -125,6 +125,33 @@
   --flamingo: #d33682;
 }
 
+/* ===== GitHub Light ===== */
+[data-theme="github-light"] {
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --surface1: #d0d7de;
+  --surface2: #afb8c1;
+  --crust: #f6f8fa;
+  --mantle: #f6f8fa;
+  --text: #1f2328;
+  --subtext: #656d76;
+  --overlay: #8c959f;
+  --accent: #0969da;
+  --green: #1a7f37;
+  --red: #d1242f;
+  --yellow: #9a6700;
+  --peach: #bc4c00;
+  --mauve: #8250df;
+  --teal: #0a3069;
+  --blue: #0969da;
+  --pink: #bf3989;
+  --sky: #0550ae;
+  --lavender: #6e40c9;
+  --maroon: #953800;
+  --rosewater: #24292f;
+  --flamingo: #cf222e;
+}
+
 /* ===== Reset ===== */
 *,
 *::before,
@@ -170,15 +197,16 @@ img {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--surface1);
   border-radius: 3px;
+  opacity: 0.4;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--surface2);
 }
 html {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  scrollbar-color: color-mix(in srgb, var(--surface1) 40%, transparent) transparent;
 }
 
 /* ===== Selection ===== */

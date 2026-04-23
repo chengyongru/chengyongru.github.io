@@ -437,12 +437,13 @@ function cmdPWD(ctx: CommandContext): void {
 }
 
 // ---- theme ----
-const THEMES = ['catppuccin', 'dracula', 'gruvbox', 'solarized'] as const;
+const THEMES = ['catppuccin', 'dracula', 'gruvbox', 'solarized', 'github-light'] as const;
 const THEME_LABELS: Record<string, string> = {
   catppuccin: 'Catppuccin Mocha',
   dracula: 'Dracula',
   gruvbox: 'Gruvbox Dark',
   solarized: 'Solarized Dark',
+  'github-light': 'GitHub Light',
 };
 
 function cmdTHEME(args: string[], ctx: CommandContext): void {
