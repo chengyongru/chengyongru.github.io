@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.astro/
+public/
+
+# Cache
+.quartz-cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*.js
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Environment
+.env
+.env.production
+
+# Prototype debug screenshots
+prototype-*.png
+
+# Content to exclude from deployment
+content/_obsidian/
+content/.obsidian/
+content/Clippings/
+content/english-learning-system/
+content/.trash/
+content/.claude/
+
+# Temp
+*.tsbuildinfo
+
+.claude
+CLAUDE.md
+.vscode

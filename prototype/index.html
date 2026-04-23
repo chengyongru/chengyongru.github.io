@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChengYongru's Terminal</title>
+<style>
+/* ===== Catppuccin Mocha Theme ===== */
+:root {
+  --bg: #1e1e2e;
+  --surface: #181825;
+  --crust: #11111b;
+  --text: #cdd6f4;
+  --subtext: #a6adc8;
+  --accent: #89b4fa;
+  --green: #a6e3a1;
+  --red: #f38ba8;
+  --yellow: #f9e2af;
+  --peach: #fab387;
+  --mauve: #cba6f7;
+  --teal: #94e2d5;
+  --blue: #89b4fa;
+  --pink: #f5c2e7;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--crust);
+  color: var(--text);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* ===== Terminal Window ===== */
+.terminal-window {
+  width: 100%;
+  max-width: 1100px;
+  height: 85vh;
+  min-height: 600px;
+  background: var(--bg);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 25px 80px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ===== Title Bar ===== */
+.title-bar {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+}
+
+.title-dots { display: flex; gap: 8px; margin-right: 16px; }
+.dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.dot:hover { filter: brightness(1.2); }
+.dot-red { background: var(--red); }
+.dot-yellow { background: var(--yellow); }
+.dot-green { background: var(--green); }
+
+.title-text {
+  color: var(--subtext);
+  font-size: 13px;
+  flex: 1;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+/* ===== Terminal Body ===== */
+.terminal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  scroll-behavior: smooth;
+}
+/* ===== Scrollbar (cross-browser) ===== */
+.terminal-body,
+.viewer-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+.terminal-body::-webkit-scrollbar { width: 6px; }
+.terminal-body::-webkit-scrollbar-track { background: transparent; }
+.terminal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+.terminal-body::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+.viewer-body::-webkit-scrollbar { width: 6px; }
+.viewer-body::-webkit-scrollbar-track { background: transparent; }
+.viewer-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+.viewer-body::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
+/* ===== Output Lines ===== */
+.output-line { margin-bottom: 4px; white-space: pre-wrap; word-break: break-word; }
+.output-line.ascii-art { color: var(--green); line-height: 1.2; font-size: 13px; letter-spacing: 0.5px; }
+.output-line.welcome { color: var(--text); }
+.output-line .dim { color: var(--subtext); }
+.output-line .bold { font-weight: bold; }
+.output-line .green { color: var(--green); }
+.output-line .blue { color: var(--blue); }
+.output-line .yellow { color: var(--yellow); }
+.output-line .red { color: var(--red); }
+.output-line .peach { color: var(--peach); }
+.output-line .mauve { color: var(--mauve); }
+.output-line .teal { color: var(--teal); }
+.output-line .pink { color: var(--pink); }
+.output-line .cyan { color: var(--teal); }
+
+/* ===== Clickable Items ===== */
+.clickable {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.clickable:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.dir-item::before { content: "\01F4C1 "; color: var(--peach); }
+.file-item::before { content: "\01F4C4 "; color: var(--green); }
+
+/* ===== Input Line ===== */
+.input-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.prompt { color: var(--green); white-space: nowrap; flex-shrink: 0; }
+.input-wrapper { flex: 1; position: relative; }
+#cmd-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  width: 100%;
+  caret-color: var(--green);
+}
+.cursor-blink { animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.typing-cursor {
+  display: inline-block;
+  width: 8px; height: 17px;
+  background: var(--green);
+  vertical-align: text-bottom;
+  animation: blink 0.7s step-end infinite;
+  margin-left: 2px;
+}
+
+/* ===== Content Viewer Overlay ===== */
+.content-viewer {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--bg);
+  z-index: 100;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.content-viewer.active { transform: translateX(0); }
+
+.viewer-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  gap: 12px;
+}
+.viewer-back-btn {
+  background: transparent;
+  border: 1px solid var(--subtext);
+  color: var(--text);
+  padding: 4px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+.viewer-back-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--crust);
+}
+.viewer-title {
+  color: var(--text);
+  font-weight: bold;
+  font-size: 15px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.viewer-hint { color: var(--subtext); font-size: 12px; white-space: nowrap; }
+
+.viewer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 30px 40px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Viewer content styles */
+.viewer-body h1 { color: var(--green); font-size: 1.8em; margin: 0 0 0.5em; }
+.viewer-body h2 { color: var(--blue); font-size: 1.4em; margin: 1.2em 0 0.5em; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.3em; }
+.viewer-body h3 { color: var(--peach); font-size: 1.15em; margin: 1em 0 0.4em; }
+.viewer-body p { margin: 0.8em 0; color: var(--text); }
+.viewer-body a { color: var(--accent); text-decoration: none; }
+.viewer-body a:hover { text-decoration: underline; }
+.viewer-body code {
+  background: rgba(255,255,255,0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: var(--peach);
+}
+.viewer-body pre {
+  background: var(--crust);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin: 1em 0;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.viewer-body pre code {
+  background: transparent;
+  padding: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.viewer-body blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  color: var(--subtext);
+  background: rgba(137, 180, 250, 0.05);
+  border-radius: 0 6px 6px 0;
+}
+.viewer-body ul, .viewer-body ol { margin: 0.5em 0; padding-left: 1.5em; }
+.viewer-body li { margin: 0.3em 0; }
+.viewer-body img { max-width: 100%; border-radius: 8px; margin: 1em 0; }
+.viewer-body table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+.viewer-body th, .viewer-body td {
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 8px 12px;
+  text-align: left;
+}
+.viewer-body th { background: rgba(255,255,255,0.04); color: var(--peach); }
+.viewer-body strong { color: var(--peach); }
+.viewer-body em { color: var(--mauve); }
+.viewer-body .katex-display { margin: 1em 0; overflow-x: auto; }
+.viewer-body .katex { color: var(--text); }
+
+/* Help table */
+.help-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.help-table td { padding: 4px 12px; border: none; }
+.help-table td:first-child { color: var(--green); font-weight: bold; min-width: 160px; white-space: nowrap; }
+.help-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+/* Tag badge */
+.tag-badge {
+  display: inline-block;
+  background: rgba(137, 180, 250, 0.15);
+  color: var(--accent);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin: 2px;
+}
+
+.error-msg { color: var(--red); }
+.info-msg { color: var(--yellow); }
+
+/* Neofetch style */
+.neofetch-row { display: flex; gap: 16px; margin: 2px 0; }
+.neofetch-label { color: var(--accent); min-width: 120px; text-align: right; }
+.neofetch-value { color: var(--text); }
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  body { padding: 8px; }
+  .terminal-window { height: 96vh; min-height: unset; border-radius: 8px; }
+  .terminal-body { padding: 14px 16px; font-size: 13px; }
+  .viewer-body { padding: 20px 18px; }
+  .title-bar { padding: 10px 12px; }
+  .title-text { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+</style>
+
+<!-- KaTeX for math rendering -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<!-- JetBrains Mono font -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="terminal-window">
+  <div class="title-bar">
+    <div class="title-dots">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yellow"></div>
+      <div class="dot dot-green"></div>
+    </div>
+    <div class="title-text">visitor@chengyongru: ~</div>
+  </div>
+
+  <div class="terminal-body" id="terminal-body"></div>
+</div>
+
+<!-- Content Viewer Overlay -->
+<div class="content-viewer" id="content-viewer">
+  <div class="viewer-header">
+    <button class="viewer-back-btn" id="viewer-back">&larr; back</button>
+    <div class="viewer-title" id="viewer-title">Loading...</div>
+    <div class="viewer-hint">[q / Esc to close]</div>
+  </div>
+  <div class="viewer-body" id="viewer-body"></div>
+</div>
+
+<!-- Bundled JS from TypeScript -->
+<script src="bundle.js?v=3"></script>
+
+</body>
+</html>

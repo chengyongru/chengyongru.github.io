@@ -1,0 +1,282 @@
+/* ===== Terminal Window ===== */
+.terminal-window {
+  position: fixed;
+  background: var(--bg);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 25px 80px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: border-radius 0.2s, box-shadow 0.2s;
+}
+
+.terminal-window.maximized {
+  left: 0 !important;
+  top: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ===== Title Bar ===== */
+.title-bar {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  user-select: none;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.title-dots {
+  display: flex;
+  gap: 8px;
+  margin-right: 16px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.dot:hover {
+  filter: brightness(1.3);
+}
+.dot-red {
+  background: var(--red);
+}
+.dot-yellow {
+  background: var(--yellow);
+}
+.dot-green {
+  background: var(--green);
+}
+
+.title-text {
+  color: var(--subtext);
+  font-size: 13px;
+  flex: 1;
+  text-align: center;
+}
+
+/* ===== Terminal Body ===== */
+.terminal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ===== Terminal Output ===== */
+.terminal-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminal-prompt {
+  color: var(--green);
+  user-select: none;
+  white-space: pre;
+}
+
+.terminal-path {
+  color: var(--blue);
+  user-select: none;
+}
+
+.terminal-dollar {
+  color: var(--subtext);
+  user-select: none;
+}
+
+/* ===== Clickable Items ===== */
+.clickable {
+  cursor: pointer;
+  color: var(--blue);
+  transition: color 0.15s;
+}
+.clickable:hover {
+  color: var(--sky);
+  text-decoration: underline;
+}
+
+.clickable-dir {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.clickable-file {
+  color: var(--text);
+}
+
+/* ===== Content Viewer Overlay ===== */
+.content-viewer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.content-viewer-panel {
+  width: 100%;
+  max-width: 900px;
+  height: 90vh;
+  max-height: 800px;
+  background: var(--bg);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 25px 80px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.viewer-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.viewer-title {
+  color: var(--green);
+  font-size: 13px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewer-close {
+  color: var(--subtext);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: background 0.15s;
+  user-select: none;
+}
+.viewer-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.viewer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.viewer-hint {
+  color: var(--overlay);
+  font-size: 12px;
+  text-align: center;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ===== Resize Handles ===== */
+.resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+.rh-n  { top: -4px;    left: 12px;   right: 12px;  height: 8px;  cursor: n-resize; }
+.rh-s  { bottom: -4px; left: 12px;   right: 12px;  height: 8px;  cursor: s-resize; }
+.rh-e  { right: -4px;  top: 12px;    bottom: 12px; width: 8px;   cursor: e-resize; }
+.rh-w  { left: -4px;   top: 12px;    bottom: 12px; width: 8px;   cursor: w-resize; }
+.rh-ne { top: -4px;    right: -4px;  width: 14px;  height: 14px; cursor: ne-resize; }
+.rh-nw { top: -4px;    left: -4px;   width: 14px;  height: 14px; cursor: nw-resize; }
+.rh-se { bottom: -4px; right: -4px;  width: 14px;  height: 14px; cursor: se-resize; }
+.rh-sw { bottom: -4px; left: -4px;   width: 14px;  height: 14px; cursor: sw-resize; }
+
+/* ===== Input Line ===== */
+.input-line {
+  display: flex;
+  align-items: center;
+}
+
+.input-field {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: inherit;
+  caret-color: var(--text);
+  padding: 0;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .terminal-window {
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .resize-handle {
+    display: none;
+  }
+
+  .content-viewer-panel {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .content-viewer {
+    padding: 0;
+  }
+
+  .terminal-body {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .viewer-body {
+    padding: 16px 14px;
+  }
+
+  /* Make clickable items touch-friendly */
+  .clickable-dir,
+  .clickable-file {
+    padding: 4px 0;
+    display: inline-block;
+  }
+
+  .viewer-close {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .viewer-hint {
+    padding: 12px 0;
+    font-size: 13px;
+  }
+}
