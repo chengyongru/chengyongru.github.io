@@ -2,7 +2,7 @@ import { defineConfig, passthroughImageService } from 'astro/config';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import preact from '@astrojs/preact';
-import tailwind from '@astrojs/tailwind';
+import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -19,9 +19,6 @@ export default defineConfig({
   output: 'static',
   integrations: [
     preact(),
-    tailwind({
-      applyBaseStyles: false,
-    }),
     sitemap(),
   ],
   image: {
@@ -48,6 +45,7 @@ export default defineConfig({
       },
     },
     plugins: [
+      tailwindcss(),
       {
         name: 'bypass-svg-metadata',
         enforce: 'pre',
