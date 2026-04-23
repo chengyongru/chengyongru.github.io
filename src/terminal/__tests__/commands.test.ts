@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { FileEntry, ContentIndex } from '../types';
+import config from '../../config';
 
 // ===== Mock file-tree module for command tests =====
 
@@ -382,7 +383,7 @@ describe('cmdNEOFETCH', () => {
     const ctx = createMockCtx();
     executeCommand('neofetch', ctx);
     const output = getOutputText(ctx);
-    expect(output).toContain('ChengYongruOS');
+    expect(output).toContain(config.neofetch.os.split(' ')[0]);
     expect(output).toContain('Astro');
     expect(output).toContain('Terminal');
   });
@@ -397,7 +398,7 @@ describe('cmdWHOAMI', () => {
     const ctx = createMockCtx();
     executeCommand('whoami', ctx);
     expect(getOutputText(ctx)).toContain('visitor');
-    expect(getOutputText(ctx)).toContain('Cheng Yongru');
+    expect(getOutputText(ctx)).toContain(config.site.title.replace(/'s Terminal$/, ''));
   });
 });
 
@@ -809,11 +810,11 @@ describe('cmdTHEME current theme marker', () => {
 
 describe('getPrompt', () => {
   it('should return root prompt for /', () => {
-    expect(getPrompt('/')).toBe('visitor@chengyongru:~$ ');
+    expect(getPrompt('/')).toBe(`visitor@${config.terminal.hostname}:~$ `);
   });
 
   it('should return directory prompt for subdirectory', () => {
-    expect(getPrompt('/notebook/')).toBe('visitor@chengyongru:~/notebook$ ');
+    expect(getPrompt('/notebook/')).toBe(`visitor@${config.terminal.hostname}:~/notebook$ `);
   });
 });
 

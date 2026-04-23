@@ -11,11 +11,12 @@ import rehypeKatex from 'rehype-katex';
 import { remarkMermaid } from './src/utils/remark-mermaid';
 import { remarkImagePath } from './src/utils/remark-image-path';
 import { remarkObsidian } from './src/utils/remark-obsidian';
+import { default as siteConfig } from './src/config';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  site: 'https://chengyongru.github.io',
+  site: siteConfig.site.url,
   output: 'static',
   integrations: [
     preact(),

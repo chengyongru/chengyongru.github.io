@@ -1,9 +1,10 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Terminal from '../components/Terminal';
+import config from '../config';
 ---
 
-<BaseLayout title="ChengYongru's Terminal">
+<BaseLayout title={config.site.title}>
   <Terminal client:load />
 </BaseLayout>
 

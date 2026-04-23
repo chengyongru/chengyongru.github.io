@@ -10,6 +10,7 @@ import {
   resolvePath,
   fetchPostContent,
 } from './file-tree';
+import config from '../config';
 
 function esc(str: string): string {
   return str
@@ -28,9 +29,10 @@ function displayName(title: string, fallback: string): string {
 }
 
 export function getPrompt(cwd: string): string {
-  if (cwd === '/') return 'visitor@chengyongru:~$ ';
+  const host = config.terminal.hostname;
+  if (cwd === '/') return `visitor@${host}:~$ `;
   const dir = cwd.replace(/^\//, '').replace(/\/$/, '');
-  return `visitor@chengyongru:~/${dir}$ `;
+  return `visitor@${host}:~/${dir}$ `;
 }
 
 export function getAllCommands(): string[] {
@@ -361,15 +363,16 @@ function cmdABOUT(ctx: CommandContext): void {
 function cmdNEOFETCH(ctx: CommandContext): void {
   const theme = (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) || 'catppuccin';
 
+  const nf = config.neofetch;
   const items = [
-    ['OS', 'ChengYongruOS v4.0'],
-    ['Host', 'Digital Garden'],
-    ['Kernel', 'Astro + Preact'],
-    ['Shell', 'Terminal UI'],
-    ['Editor', 'VS Code + Obsidian'],
-    ['Languages', 'Python, C++, TypeScript'],
-    ['Focus', 'ML, Security, Reverse Engineering'],
-    ['Uptime', 'Since 2025'],
+    ['OS', nf.os],
+    ['Host', nf.host],
+    ['Kernel', nf.kernel],
+    ['Shell', nf.shell],
+    ['Editor', nf.editor],
+    ['Languages', nf.languages],
+    ['Focus', nf.focus],
+    ['Uptime', nf.uptime],
     ['Theme', THEME_LABELS[theme] || theme],
   ];
 
@@ -380,7 +383,7 @@ function cmdNEOFETCH(ctx: CommandContext): void {
   ctx.output(
     `<div style="font-size:13px;font-family:'JetBrains Mono',monospace;line-height:1.7;">
       <div style="margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--surface1);">
-        <span style="font-size:18px;font-weight:800;letter-spacing:2px;"><span style="color:var(--green)">CYR</span><span style="color:var(--surface2)">.</span><span style="color:var(--mauve)">ML</span></span>
+        <span style="font-size:18px;font-weight:800;letter-spacing:2px;"><span style="color:var(--${config.terminal.brandColor})">${config.terminal.brand}</span><span style="color:var(--surface2)">.</span><span style="color:var(--mauve)">${config.terminal.brandSuffix}</span></span>
         <span style="margin-left:8px;color:var(--subtext);font-size:12px;">sysinfo</span>
       </div>
       <pre style="margin:0;color:var(--text);">${rows}</pre>
@@ -390,9 +393,10 @@ function cmdNEOFETCH(ctx: CommandContext): void {
 
 // ---- whoami ----
 function cmdWHOAMI(ctx: CommandContext): void {
+  const owner = config.site.title.replace(/'s Terminal$/, '');
   ctx.output(
     `<span style="color:var(--green)">visitor</span> — an explorer of this digital garden.\n` +
-    '<span style="color:var(--overlay)">You are reading the notes of Cheng Yongru, algorithm engineer.</span>',
+    `<span style="color:var(--overlay)">You are reading the notes of ${owner}.</span>`,
   );
 }
 

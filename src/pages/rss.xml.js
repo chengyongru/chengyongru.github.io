@@ -1,5 +1,6 @@
 import rss from '@astrojs/rss';
 import { getCollection } from 'astro:content';
+import config from '../config';
 
 export async function GET(context) {
   const posts = await getCollection('blog');
@@ -12,8 +13,8 @@ export async function GET(context) {
     });
 
   return rss({
-    title: "ChengYongru's Digital Garden",
-    description: 'Notes on ML, Security, Reverse Engineering, and more',
+    title: config.rss.title,
+    description: config.rss.description,
     site: context.site,
     items: published.map(post => ({
       title: post.data.title || post.id,

@@ -8,6 +8,7 @@ import ContentViewer from './ContentViewer';
 import { executeCommand, getPrompt, getAllCommands } from '../terminal/commands';
 import { loadFileSystem, listDir, resolvePath, fetchPostContent } from '../terminal/file-tree';
 import type { FileEntry } from '../terminal/types';
+import config from '../config';
 
 interface OutputLine {
   html: string;
@@ -24,8 +25,8 @@ interface ViewerState {
 const BANNER = [
   `<div style="margin:4px 0 6px;font-family:'JetBrains Mono',monospace;">
     <div style="font-size:20px;font-weight:800;letter-spacing:2px;line-height:1.3;">
-      <span style="color:var(--green)">CYR</span><span style="color:var(--surface2)">.</span><span style="color:var(--mauve)">ML</span>
-      <span style="font-size:12px;font-weight:400;color:var(--subtext);margin-left:8px;letter-spacing:0.5px;"><a href="mailto:chengyongru.ai@gmail.com" style="color:var(--subtext);text-decoration:none;">chengyongru.ai@gmail.com</a></span>
+      <span style="color:var(--${config.terminal.brandColor})">${config.terminal.brand}</span><span style="color:var(--surface2)">.</span><span style="color:var(--mauve)">${config.terminal.brandSuffix}</span>
+      <span style="font-size:12px;font-weight:400;color:var(--subtext);margin-left:8px;letter-spacing:0.5px;"><a href="mailto:${config.terminal.email}" style="color:var(--subtext);text-decoration:none;">${config.terminal.email}</a></span>
     </div>
     <div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--surface1);font-size:13px;color:var(--overlay);">
       Type <span style="color:var(--yellow)">'help'</span> for commands, or click anything to explore.
@@ -135,7 +136,7 @@ export default function Terminal() {
         fetchPostContent(initialSlug).then(result => {
           if (result) {
             setViewer({ title: result.title, html: result.html, slug: initialSlug });
-            document.title = `${result.title} | ChengYongru`;
+            document.title = `${result.title} | ${config.site.title}`;
             // Use replaceState since this is restoring, not a new navigation
             window.history.replaceState({ slug: initialSlug, title: result.title }, '', `/blog/${initialSlug}/`);
           } else {
@@ -218,13 +219,13 @@ export default function Terminal() {
         fetchPostContent(slug).then(result => {
           if (result) {
             setViewer({ title: result.title, html: result.html, slug });
-            document.title = `${result.title} | ChengYongru`;
+            document.title = `${result.title} | ${config.site.title}`;
           }
         });
       } else {
         // Back to home — close viewer
         setViewer(null);
-        document.title = "ChengYongru's Terminal";
+        document.title = config.site.title;
       }
     };
 
@@ -289,7 +290,7 @@ export default function Terminal() {
     setViewer({ title, html, slug });
     // Sync URL to browser history
     const url = `/blog/${slug}/`;
-    document.title = `${title} | ChengYongru`;
+    document.title = `${title} | ${config.site.title}`;
     if (window.location.pathname !== url) {
       window.history.pushState({ slug, title }, '', url);
     }
@@ -551,7 +552,7 @@ export default function Terminal() {
           <span class="dot dot-yellow" />
           <span class="dot dot-green" onClick={(e) => { e.stopPropagation(); toggleMaximize(); }} />
         </div>
-        <span class="title-text">visitor@chengyongru:~</span>
+        <span class="title-text">visitor@{config.terminal.hostname}:~</span>
       </div>
       <div class="terminal-body" ref={bodyRef}>
         {lines.map((line, i) => (
@@ -599,7 +600,7 @@ export default function Terminal() {
           onClose={() => {
             setViewer(null);
             // Restore URL to home
-            document.title = "ChengYongru's Terminal";
+            document.title = config.site.title;
             if (window.location.pathname !== '/') {
               window.history.pushState(null, '', '/');
             }

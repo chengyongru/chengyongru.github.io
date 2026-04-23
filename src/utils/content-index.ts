@@ -6,6 +6,7 @@
 import type { CollectionEntry } from 'astro:content';
 import type { ContentIndex, FileEntry } from '../terminal/types';
 import { shouldFilterSlug } from '../terminal/constants';
+import config from '../config';
 
 function estimateReadingTime(text: string): number {
   // Chinese: ~300 chars/min, English: ~200 words/min
@@ -14,10 +15,7 @@ function estimateReadingTime(text: string): number {
   return Math.max(1, Math.ceil(chineseChars / 300 + englishWords / 200));
 }
 
-const DIR_DESCS: Record<string, string> = {
-  'diary/': 'Journal entries',
-  'notebook/': 'ML/DL/RL/Security notes',
-};
+const DIR_DESCS: Record<string, string> = config.dirs;
 
 function categorizePost(id: string): { dir: string; desc: string } {
   if (id === 'index') return { dir: '/', desc: '' };
@@ -30,8 +28,13 @@ function categorizePost(id: string): { dir: string; desc: string } {
   }
 
   // Flat id fallback
-  if (id.match(/^\d{4}-\d{2}-\d{2}$/)) return { dir: 'diary/', desc: 'Journal entries' };
-  return { dir: 'notebook/', desc: 'ML/DL/RL/Security notes' };
+  const dirKeys = Object.keys(config.dirs);
+  const defaultDir = dirKeys[0] || 'notes/';
+  if (id.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const diaryDir = dirKeys.find(k => k.includes('diary')) || defaultDir;
+    return { dir: diaryDir, desc: config.dirs[diaryDir] || '' };
+  }
+  return { dir: defaultDir, desc: config.dirs[defaultDir] || '' };
 }
 
 function extractPlainText(body: string): string {
