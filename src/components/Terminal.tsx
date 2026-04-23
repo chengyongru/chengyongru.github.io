@@ -55,11 +55,13 @@ export default function Terminal() {
   const [cwd, setCwd] = useState('/');
   const [lines, setLines] = useState<OutputLine[]>([]);
   const [input, setInput] = useState('');
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('cmd-history') || '[]'); } catch { return []; }
+  });
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const [ready, setReady] = useState(false);
-  const [tabCycle, setTabCycle] = useState<{matches: string[]; idx: number; base: string} | null>(null);
+  const [tabCycle, setTabCycle] = useState<{matches: string[]; idx: number; base: string; descs?: Record<string, string>} | null>(null);
 
   // Window management
   const [winPos, setWinPos] = useState({ x: 0, y: 0 });
@@ -376,7 +378,7 @@ export default function Terminal() {
     if (cmd.trim().toLowerCase() === 'clear') {
       handleClear();
       appendInputLine(cmd);
-      setHistory(prev => [...prev, cmd]);
+      setHistory(prev => { const next = [...prev, cmd]; localStorage.setItem('cmd-history', JSON.stringify(next.slice(-200))); return next; });
       setInput('');
       setHistoryIndex(-1);
       return;
@@ -394,7 +396,7 @@ export default function Terminal() {
       _history: history,
     }, handleCommand);
 
-    setHistory(prev => [...prev, cmd]);
+    setHistory(prev => { const next = [...prev, cmd]; localStorage.setItem('cmd-history', JSON.stringify(next.slice(-200))); return next; });
     setInput('');
     setHistoryIndex(-1);
     setTabCycle(null);
@@ -440,6 +442,7 @@ export default function Terminal() {
       const lword = word.toLowerCase();
 
       let candidates: string[];
+      let descs: Record<string, string> | undefined;
 
       if (isCmd) {
         candidates = getAllCommands().filter(c => c.startsWith(lword));
@@ -455,6 +458,7 @@ export default function Terminal() {
           // cd: only show directories by name
           const matched = files.filter(f => f.type === 'dir' && f.name.toLowerCase().startsWith(filePrefix));
           candidates = matched.map(f => dirPart + f.name);
+          descs = Object.fromEntries(matched.map(f => [dirPart + f.name, f.desc || '']));
         } else {
           // File commands (cat/grep/tag/…): directories + files
           // Always include matching directories (for path navigation like cat notebook/…)
@@ -483,6 +487,14 @@ export default function Terminal() {
               return fullName.includes(' ') ? `"${fullName}"` : fullName;
             }),
           ];
+          descs = Object.fromEntries(
+            [...dirMatches, ...fileMatches].map(f => {
+              const display = f.type === 'dir' ? f.name : (f.title || f.name.replace(/\.md$/i, ''));
+              const fullName = dirPart + display;
+              const key = fullName.includes(' ') ? `"${fullName}"` : fullName;
+              return [key, f.desc || ''];
+            }),
+          );
         }
       }
 
@@ -507,7 +519,7 @@ export default function Terminal() {
         const picked = matches[next];
         if (isCmd) setInput(picked + ' ');
         else { parts[parts.length - 1] = picked; setInput(parts.join(' ')); }
-        setTabCycle({ matches, idx: next, base: tabCycle.base });
+        setTabCycle({ matches, idx: next, base: tabCycle.base, descs: tabCycle.descs });
       } else {
         // First Tab: extend to common prefix, show options
         const common = longestCommonPrefix(candidates);
@@ -515,7 +527,7 @@ export default function Terminal() {
           if (isCmd) setInput(common);
           else { parts[parts.length - 1] = common; setInput(parts.join(' ')); }
         }
-        setTabCycle({ matches: candidates, idx: -1, base: lword });
+        setTabCycle({ matches: candidates, idx: -1, base: lword, descs });
       }
       return;
     }
@@ -552,11 +564,14 @@ export default function Terminal() {
         ))}
         {tabCycle && tabCycle.matches.length > 0 && (
           <div class="terminal-line" style="color:var(--overlay)">
-            {tabCycle.matches.map((m, i) => (
-              <span key={i} style={i === tabCycle.idx ? 'color:var(--text);text-decoration:underline' : ''}>
-                {m}{'  '}
-              </span>
-            ))}
+            {tabCycle.matches.map((m, i) => {
+              const desc = tabCycle.descs?.[m];
+              return (
+                <span key={i} style={i === tabCycle.idx ? 'color:var(--text);text-decoration:underline' : ''}>
+                  {m}{desc ? <span style="color:var(--subtext);font-size:0.85em"> ({desc})</span> : null}{'  '}
+                </span>
+              );
+            })}
           </div>
         )}
         {ready && !viewer && (
