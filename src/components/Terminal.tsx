@@ -7,6 +7,8 @@ import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import ContentViewer from './ContentViewer';
 import { executeCommand, getPrompt, getAllCommands } from '../terminal/commands';
 import { loadFileSystem, listDir, resolvePath, fetchPostContent } from '../terminal/file-tree';
+import { completeTerminalInput, type TabCycleState } from '../terminal/autocomplete';
+import { quoteCommandArg } from '../terminal/command-line';
 import type { FileEntry } from '../terminal/types';
 import config from '../config';
 
@@ -40,18 +42,6 @@ const MIN_H = 360;
 const DEFAULT_WIN = { w: 960, h: 600 };
 const MAX_LINES = 500;
 
-function longestCommonPrefix(strs: string[]): string {
-  if (strs.length < 2) return strs[0] || '';
-  let i = 0;
-  while (true) {
-    const ch = strs[0][i];
-    if (ch === undefined) break;
-    if (!strs.every(s => s[i] === ch)) break;
-    i++;
-  }
-  return strs[0].slice(0, i);
-}
-
 export default function Terminal() {
   const [cwd, setCwd] = useState('/');
   const [lines, setLines] = useState<OutputLine[]>([]);
@@ -62,7 +52,7 @@ export default function Terminal() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const [ready, setReady] = useState(false);
-  const [tabCycle, setTabCycle] = useState<{matches: string[]; idx: number; base: string; descs?: Record<string, string>} | null>(null);
+  const [tabCycle, setTabCycle] = useState<TabCycleState | null>(null);
 
   // Window management
   const [winPos, setWinPos] = useState({ x: 0, y: 0 });
@@ -338,7 +328,7 @@ export default function Terminal() {
     if (action === 'cat') {
       const slug = clickable.dataset.slug;
       if (slug) {
-        const quotedSlug = slug.includes('"') ? slug : `"${slug}"`;
+        const quotedSlug = quoteCommandArg(slug);
         executeCommand(`cat ${quotedSlug}`, {
           cwd,
           output,
@@ -436,107 +426,24 @@ export default function Terminal() {
 
     if (e.key === 'Tab') {
       e.preventDefault();
-      const parts = input.split(' ');
-      const isCmd = parts.length <= 1;
-      const cmdName = parts[0].toLowerCase();
-      const word = isCmd ? parts[0] : parts[parts.length - 1];
-      const lword = word.toLowerCase();
-
-      let candidates: string[];
-      let descs: Record<string, string> | undefined;
-
-      if (isCmd) {
-        candidates = getAllCommands().filter(c => c.startsWith(lword));
-      } else {
-        // Path-aware completion
-        const lastSlash = word.lastIndexOf('/');
-        const dirPart = lastSlash >= 0 ? word.substring(0, lastSlash + 1) : '';
-        const filePrefix = word.substring(lastSlash + 1).toLowerCase();
-        const resolvedDir = dirPart ? resolvePath(cwd, dirPart) : cwd;
-        const files = listDir(resolvedDir) || [];
-
-        if (cmdName === 'cd') {
-          // cd: only show directories by name
-          const matched = files.filter(f => f.type === 'dir' && f.name.toLowerCase().startsWith(filePrefix));
-          candidates = matched.map(f => dirPart + f.name);
-          descs = Object.fromEntries(matched.map(f => [dirPart + f.name, f.desc || '']));
-        } else {
-          // File commands (cat/grep/tag/…): directories + files
-          // Always include matching directories (for path navigation like cat notebook/…)
-          const dirMatches = files.filter(f => f.type === 'dir' && f.name.toLowerCase().startsWith(filePrefix));
-
-          // File matching by title (priority) then filename
-          let fileMatches = files.filter(f =>
-            f.type === 'file' && f.title?.toLowerCase().startsWith(filePrefix),
-          );
-          if (fileMatches.length === 0) {
-            fileMatches = files.filter(f =>
-              f.type === 'file' && f.name.toLowerCase().startsWith(filePrefix),
-            );
-          }
-          if (fileMatches.length === 0) {
-            fileMatches = files.filter(f =>
-              f.type === 'file' && f.title?.toLowerCase().includes(filePrefix),
-            );
-          }
-
-          candidates = [
-            ...dirMatches.map(f => dirPart + f.name),
-            ...fileMatches.map(f => {
-              const display = f.title || f.name.replace(/\.md$/i, '');
-              const fullName = dirPart + display;
-              return fullName.includes(' ') ? `"${fullName}"` : fullName;
-            }),
-          ];
-          descs = Object.fromEntries(
-            [...dirMatches, ...fileMatches].map(f => {
-              const display = f.type === 'dir' ? f.name : (f.title || f.name.replace(/\.md$/i, ''));
-              const fullName = dirPart + display;
-              const key = fullName.includes(' ') ? `"${fullName}"` : fullName;
-              return [key, f.desc || ''];
-            }),
-          );
-        }
-      }
-
-      if (candidates.length === 0) { setTabCycle(null); return; }
-
-      if (candidates.length === 1) {
-        if (isCmd) setInput(candidates[0] + ' ');
-        else { parts[parts.length - 1] = candidates[0]; setInput(parts.join(' ')); }
-        setTabCycle(null);
-        return;
-      }
-
-      // Multiple candidates — cycling Tab completion
-      const dir = e.shiftKey ? -1 : 1;
-
-      if (tabCycle && lword.startsWith(tabCycle.base)) {
-        // Continue cycling through stored matches (not freshly generated candidates)
-        const matches = tabCycle.matches;
-        const next = tabCycle.idx === -1
-          ? (dir === 1 ? 0 : matches.length - 1)
-          : (tabCycle.idx + dir + matches.length) % matches.length;
-        const picked = matches[next];
-        if (isCmd) setInput(picked + ' ');
-        else { parts[parts.length - 1] = picked; setInput(parts.join(' ')); }
-        setTabCycle({ matches, idx: next, base: tabCycle.base, descs: tabCycle.descs });
-      } else {
-        // First Tab: extend to common prefix, show options
-        const common = longestCommonPrefix(candidates);
-        if (common.length > lword.length) {
-          if (isCmd) setInput(common);
-          else { parts[parts.length - 1] = common; setInput(parts.join(' ')); }
-        }
-        setTabCycle({ matches: candidates, idx: -1, base: lword, descs });
-      }
+      const result = completeTerminalInput({
+        input,
+        cwd,
+        tabCycle,
+        shiftKey: e.shiftKey,
+        commands: getAllCommands(),
+        listDir,
+        resolvePath,
+      });
+      setInput(result.input);
+      setTabCycle(result.tabCycle);
       return;
     }
 
     if (e.key === 'Escape') {
       setTabCycle(null);
     }
-  }, [input, history, historyIndex, handleCommand, getCurrentFiles, cwd, tabCycle]);
+  }, [input, history, historyIndex, handleCommand, cwd, tabCycle]);
 
   const resizeDirs = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 

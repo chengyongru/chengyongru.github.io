@@ -252,6 +252,30 @@ describe('cmdLS', () => {
     expect(output).toContain('ARIMA');
   });
 
+  it('should list a file target by title from the current directory', () => {
+    mockFS['/notebook/'] = [
+      { name: 'arima-model.md', type: 'file', slug: 'notebook/arima-model', title: 'ARIMA Model', date: '2025-10-01', tags: ['ML'] },
+    ];
+    const ctx = createMockCtx();
+    ctx.cwd = '/notebook/';
+    executeCommand('ls "ARIMA Model"', ctx);
+
+    const output = ctx.output.mock.calls[0][0];
+    expect(output).toContain('ARIMA Model');
+    expect(output).toContain('ML');
+  });
+
+  it('should list a file target by title after a directory prefix', () => {
+    mockFS['/notebook/'] = [
+      { name: 'arima-model.md', type: 'file', slug: 'notebook/arima-model', title: 'ARIMA Model', date: '2025-10-01', tags: ['ML'] },
+    ];
+    const ctx = createMockCtx();
+    executeCommand('ls "notebook/ARIMA Model"', ctx);
+
+    const output = ctx.output.mock.calls[0][0];
+    expect(output).toContain('ARIMA Model');
+  });
+
   it('should report error for non-existent directory', () => {
     const ctx = createMockCtx();
     executeCommand('ls nonexistent/', ctx);

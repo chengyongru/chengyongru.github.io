@@ -3,13 +3,14 @@
 // Uses file-tree.ts for data instead of hardcoded FILE_SYSTEM
 // ============================================================
 
-import type { CommandContext } from './types';
+import type { CommandContext, FileEntry } from './types';
 import {
   listDir,
   getAllPosts,
   resolvePath,
   fetchPostContent,
 } from './file-tree';
+import { parseCommandLine } from './command-line';
 import config from '../config';
 
 function esc(str: string): string {
@@ -26,6 +27,49 @@ function displayName(title: string, fallback: string): string {
   // Slug-like title or empty — extract basename, strip .md extension
   const base = (title || fallback).replace(/^.*\//, '').replace(/\.md$/i, '');
   return base || fallback;
+}
+
+function renderLsFile(f: FileEntry): string {
+  const tagsHtml = f.tags ? f.tags.map(t => `<span style="background:var(--surface);color:var(--blue);padding:1px 6px;border-radius:3px;font-size:0.8em;">${esc(t)}</span>`).join(' ') : '';
+  const name = displayName(f.title || '', f.name);
+  return `<div style="display:flex;gap:12px;align-items:baseline;"><span class="clickable-file" data-action="cat" data-slug="${f.slug || ''}" style="min-width:280px;display:inline-block;">${esc(name)}</span><span style="color:var(--overlay);min-width:90px;flex-shrink:0;">${f.date ? f.date.split('T')[0] : ''}</span><span>${tagsHtml}</span></div>`;
+}
+
+function findFileByName(files: FileEntry[], target: string, fullTarget?: string): FileEntry | undefined {
+  const normalized = target.replace(/\.md$/i, '').toLowerCase();
+  const normalizedFull = fullTarget?.replace(/^\/+/, '').replace(/\.md$/i, '').toLowerCase();
+
+  return files.find(f => {
+    if (f.type !== 'file') return false;
+    const name = f.name.toLowerCase();
+    const stem = name.replace(/\.md$/i, '');
+    const title = displayName(f.title || '', f.name).toLowerCase();
+    const slug = f.slug?.toLowerCase();
+    return (
+      name === normalized ||
+      stem === normalized ||
+      title === normalized ||
+      slug === normalizedFull ||
+      slug === normalized
+    );
+  });
+}
+
+function findFileTarget(cwd: string, target: string): FileEntry | undefined {
+  const currentFiles = listDir(cwd) || [];
+  const currentMatch = findFileByName(currentFiles, target, target);
+  if (currentMatch) return currentMatch;
+
+  const cleanTarget = target.replace(/\.md$/i, '');
+  const lastSlash = cleanTarget.lastIndexOf('/');
+  if (lastSlash < 0) return undefined;
+
+  const dirPart = cleanTarget.substring(0, lastSlash + 1);
+  const itemPart = cleanTarget.substring(lastSlash + 1);
+  const resolvedDir = resolvePath(cwd, dirPart);
+  const files = listDir(resolvedDir) || [];
+  const resolvedFull = `${resolvedDir.replace(/^\//, '')}${itemPart}`;
+  return findFileByName(files, itemPart, resolvedFull);
 }
 
 export function getPrompt(cwd: string): string {
@@ -50,10 +94,9 @@ export function executeCommand(
 ): void {
   if (!cmd.trim()) return;
 
-  const parts = cmd.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+  const parts = parseCommandLine(cmd);
   const command = parts[0]?.toLowerCase();
-  // Strip surrounding quotes from arguments (allows filenames with spaces)
-  const args = parts.slice(1).map(a => a.replace(/^"|"$/g, ''));
+  const args = parts.slice(1);
 
   switch (command) {
     case 'ls': cmdLS(args, ctx); break;
@@ -86,18 +129,25 @@ export function executeCommand(
 // ---- ls ----
 function cmdLS(args: string[], ctx: CommandContext): void {
   let targetDir = ctx.cwd;
+  let targetArg: string | null = null;
   let page = 1;
 
   for (const arg of args) {
     if (/^\d+$/.test(arg)) {
       page = parseInt(arg);
     } else {
+      targetArg = arg;
       targetDir = resolvePath(ctx.cwd, arg.endsWith('/') ? arg : arg + '/');
     }
   }
 
   const files = listDir(targetDir);
   if (!files) {
+    const file = targetArg ? findFileTarget(ctx.cwd, targetArg) : undefined;
+    if (file) {
+      ctx.output(renderLsFile(file));
+      return;
+    }
     ctx.output(`<span style="color:var(--red)">ls: cannot access '${esc(targetDir)}': No such directory</span>`);
     return;
   }
@@ -117,9 +167,7 @@ function cmdLS(args: string[], ctx: CommandContext): void {
     if (f.type === 'dir') {
       output += `<div style="display:flex;gap:12px;"><span class="clickable-dir" data-action="cd" data-path="${targetDir}${f.name}" style="min-width:180px;display:inline-block;">${esc(f.name)}</span><span style="color:var(--overlay);flex:1;">${esc(f.desc || '')}</span></div>`;
     } else if (f.title || f.name) {
-      const tagsHtml = f.tags ? f.tags.map(t => `<span style="background:var(--surface);color:var(--blue);padding:1px 6px;border-radius:3px;font-size:0.8em;">${esc(t)}</span>`).join(' ') : '';
-      const name = displayName(f.title || '', f.name);
-      output += `<div style="display:flex;gap:12px;align-items:baseline;"><span class="clickable-file" data-action="cat" data-slug="${f.slug || ''}" style="min-width:280px;display:inline-block;">${esc(name)}</span><span style="color:var(--overlay);min-width:90px;flex-shrink:0;">${f.date ? f.date.split('T')[0] : ''}</span><span>${tagsHtml}</span></div>`;
+      output += renderLsFile(f);
     }
   }
 
