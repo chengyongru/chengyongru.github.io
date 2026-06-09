@@ -3,10 +3,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
 import Terminal from '../../components/Terminal';
 import config from '../../config';
+import { isPublishablePost } from '../../utils/publication';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
-  return posts.map(post => ({
+  return posts.filter(post => isPublishablePost(post)).map(post => ({
     params: { slug: post.id },
     props: { post },
   }));

@@ -1,11 +1,12 @@
 import rss from '@astrojs/rss';
 import { getCollection } from 'astro:content';
 import config from '../config';
+import { isPublishablePost } from '../utils/publication';
 
 export async function GET(context) {
   const posts = await getCollection('blog');
   const published = posts
-    .filter(post => !post.data.draft)
+    .filter(post => isPublishablePost(post))
     .sort((a, b) => {
       const da = a.data.date?.getTime() || 0;
       const db = b.data.date?.getTime() || 0;

@@ -39,6 +39,15 @@ export interface RssConfig {
   description: string;
 }
 
+export interface PublishConfig {
+  /** Require at least one tag before a note is publicly generated. */
+  requireTags: boolean;
+  /** Any note with one of these tags is kept out of the public site. */
+  blockedTags: string[];
+  /** Slugs that bypass tag-based filtering, while still respecting draft/path filters. */
+  alwaysPublishSlugs: string[];
+}
+
 export interface Config {
   site: SiteConfig;
   terminal: TerminalConfig;
@@ -46,6 +55,7 @@ export interface Config {
   /** Directory descriptions for `ls` output. Key = directory path (e.g. "notebook/") */
   dirs: Record<string, string>;
   rss: RssConfig;
+  publish: PublishConfig;
 }
 
 const config: Config = {
@@ -83,6 +93,12 @@ const config: Config = {
   rss: {
     title: "ChengYongru's Digital Garden",
     description: 'Notes on ML, Security, Reverse Engineering, and more',
+  },
+
+  publish: {
+    requireTags: true,
+    blockedTags: ['todo'],
+    alwaysPublishSlugs: ['index'],
   },
 };
 

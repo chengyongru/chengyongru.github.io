@@ -5,8 +5,8 @@
 
 import type { CollectionEntry } from 'astro:content';
 import type { ContentIndex, FileEntry } from '../terminal/types';
-import { shouldFilterSlug } from '../terminal/constants';
 import config from '../config';
+import { isPublishablePost } from './publication';
 
 function estimateReadingTime(text: string): number {
   // Chinese: ~300 chars/min, English: ~200 words/min
@@ -66,8 +66,7 @@ export async function generateContentIndex(posts: CollectionEntry<'blog'>[]): Pr
 
   for (const post of posts) {
     const id = post.id;
-    if (post.data.draft) continue;
-    if (shouldFilterSlug(id)) continue;
+    if (!isPublishablePost(post)) continue;
 
     const body = (post as any).body || '';
 

@@ -26,6 +26,7 @@ themes, and a three-body gravitational spotlight background.
 | `neofetch` | System info displayed by the `neofetch` command |
 | `dirs` | Directory names and descriptions for `ls` |
 | `rss` | RSS feed title and description |
+| `publish` | Tag-based publication rules |
 
 ### Content
 
@@ -51,6 +52,17 @@ draft: false
 mathjax: true
 ---
 ```
+
+Publication rules live in `src/config.ts`:
+```ts
+publish: {
+  requireTags: true,       // notes without tags are not generated publicly
+  blockedTags: ['todo'],   // notes tagged todo are not generated publicly
+  alwaysPublishSlugs: ['index'],
+}
+```
+
+The rules apply to generated `/blog/...` pages, `content-index.json`, the terminal UI, tag/search/recent commands, and RSS.
 
 ## Features
 
