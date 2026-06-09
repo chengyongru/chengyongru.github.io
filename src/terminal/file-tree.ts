@@ -111,7 +111,8 @@ export function resolvePath(cwd: string, target: string): string {
 }
 
 export function getPostUrl(slug: string): string {
-  return `/blog/${slug}/`;
+  const encodedSlug = slug.split('/').map(encodeURIComponent).join('/');
+  return `/blog/${encodedSlug}/`;
 }
 
 /** Fetch a blog post's content by extracting the article from the rendered page */
@@ -119,6 +120,7 @@ export async function fetchPostContent(slug: string): Promise<{ title: string; h
   const url = getPostUrl(slug);
   try {
     const res = await fetch(url);
+    if (!res.ok) return null;
     const html = await res.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const article = doc.querySelector('article');

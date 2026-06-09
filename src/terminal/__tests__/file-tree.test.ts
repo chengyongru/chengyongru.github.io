@@ -262,6 +262,46 @@ describe('fetchPostContent', () => {
     expect(result!.html).not.toContain('post-footer');
   });
 
+  it('should fetch URL-encoded post paths', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve('<html><body><article><h1>Encoded</h1><p>Content</p></article></body></html>'),
+    });
+    const MockDOMParser = vi.fn().mockImplementation(function(this: any) {
+      this.parseFromString = () => ({
+        querySelector: (sel: string) => {
+          if (sel === 'article') return {
+            querySelector: (s: string) => {
+              if (s === 'h1') return { textContent: 'Encoded' };
+              if (s === '.post-header') return null;
+              if (s === '.post-footer') return null;
+              return null;
+            },
+            innerHTML: '<p>Content</p>',
+          };
+          return null;
+        },
+      });
+    });
+    vi.stubGlobal('DOMParser', MockDOMParser);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await fetchPostContent('notebook/nanobot websocket channel 安全加固与工程化');
+    expect(result).not.toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith('/blog/notebook/nanobot%20websocket%20channel%20%E5%AE%89%E5%85%A8%E5%8A%A0%E5%9B%BA%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%8C%96/');
+  });
+
+  it('should return null on non-ok HTTP response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      text: () => Promise.resolve('<html><body>Not found</body></html>'),
+    }));
+
+    const result = await fetchPostContent('missing');
+    expect(result).toBeNull();
+  });
+
   it('should return null when no article element found', async () => {
     const MockDOMParser = vi.fn().mockImplementation(function(this: any) {
       this.parseFromString = () => ({
@@ -314,6 +354,11 @@ describe('getPostUrl', () => {
   it('should generate correct URL', async () => {
     await reloadModule();
     expect(getPostUrl('notebook/arima')).toBe('/blog/notebook/arima/');
+  });
+
+  it('should encode slug path segments', async () => {
+    await reloadModule();
+    expect(getPostUrl('notebook/nanobot websocket channel 安全加固与工程化')).toBe('/blog/notebook/nanobot%20websocket%20channel%20%E5%AE%89%E5%85%A8%E5%8A%A0%E5%9B%BA%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%8C%96/');
   });
 });
 
