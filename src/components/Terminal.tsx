@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
-import ContentViewer from './ContentViewer';
+import ContentViewer, { getLineHeight } from './ContentViewer';
 import { executeCommand, getPrompt, getAllCommands } from '../terminal/commands';
 import { loadFileSystem, listDir, resolvePath, fetchPostContent } from '../terminal/file-tree';
 import { completeTerminalInput, type TabCycleState } from '../terminal/autocomplete';
@@ -70,6 +70,7 @@ export default function Terminal() {
     dir: string;
   } | null>(null);
   const preMaxRef = useRef({ pos: { x: 0, y: 0 }, size: { ...DEFAULT_WIN } });
+  const viewerGBufferRef = useRef<number | null>(null);
 
   // Center window on mount
   useEffect(() => {
@@ -277,6 +278,10 @@ export default function Terminal() {
   }, [cwd]);
 
   const openViewer = useCallback((title: string, html: string, slug: string) => {
+    inputRef.current?.blur();
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     setViewer({ title, html, slug });
     // Sync URL to browser history
     const url = `/blog/${slug}/`;
@@ -284,6 +289,16 @@ export default function Terminal() {
     if (window.location.pathname !== url) {
       window.history.pushState({ slug, title }, '', url);
     }
+  }, []);
+
+  const closeViewer = useCallback(() => {
+    setViewer(null);
+    // Restore URL to home
+    document.title = config.site.title;
+    if (window.location.pathname !== '/') {
+      window.history.pushState(null, '', '/');
+    }
+    requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
 
   const handleViewerNavigate = useCallback((href: string) => {
@@ -445,6 +460,81 @@ export default function Terminal() {
     }
   }, [input, history, historyIndex, handleCommand, cwd, tabCycle]);
 
+  useEffect(() => {
+    if (!viewer) return;
+
+    const handleGlobalViewerKeys = (e: KeyboardEvent) => {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target?.closest('.vim-search-input')) return;
+
+      const viewerBody = document.querySelector<HTMLElement>('.viewer-body');
+      if (!viewerBody) return;
+      const eventKey = typeof e.key === 'string' ? e.key : '';
+      const noCommandModifier = !e.ctrlKey && !e.altKey && !e.metaKey;
+      const isPlainKey = (key: string, code: string) =>
+        noCommandModifier && !e.shiftKey && (
+          eventKey.toLowerCase() === key ||
+          e.code === code
+        );
+      const isShiftKey = (key: string, code: string) =>
+        noCommandModifier && e.shiftKey && (
+          eventKey === key ||
+          e.code === code
+        );
+
+      const consume = () => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      };
+
+      if (e.key === 'd' && e.ctrlKey) {
+        consume();
+        const lineHeight = getLineHeight(viewerBody);
+        viewerBody.scrollTop += (viewerBody.clientHeight - lineHeight * 2) * 0.5;
+        return;
+      }
+
+      if (e.key === 'u' && e.ctrlKey) {
+        consume();
+        const lineHeight = getLineHeight(viewerBody);
+        viewerBody.scrollTop -= (viewerBody.clientHeight - lineHeight * 2) * 0.5;
+        return;
+      }
+
+      if (isShiftKey('G', 'KeyG')) {
+        consume();
+        viewerBody.scrollTop = viewerBody.scrollHeight;
+        return;
+      }
+
+      if (isPlainKey('g', 'KeyG')) {
+        consume();
+        const now = Date.now();
+        if (viewerGBufferRef.current && now - viewerGBufferRef.current < 500) {
+          viewerBody.scrollTop = 0;
+          viewerGBufferRef.current = null;
+        } else {
+          viewerGBufferRef.current = now;
+        }
+        return;
+      }
+
+      if (eventKey === 'Escape' || isPlainKey('q', 'KeyQ')) {
+        consume();
+        closeViewer();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalViewerKeys, { capture: true });
+    document.addEventListener('keydown', handleGlobalViewerKeys, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', handleGlobalViewerKeys, { capture: true });
+      document.removeEventListener('keydown', handleGlobalViewerKeys, { capture: true });
+      viewerGBufferRef.current = null;
+    };
+  }, [viewer, closeViewer]);
+
   const resizeDirs = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 
   return (
@@ -504,15 +594,7 @@ export default function Terminal() {
         <ContentViewer
           title={viewer.title}
           html={viewer.html}
-          onClose={() => {
-            setViewer(null);
-            // Restore URL to home
-            document.title = config.site.title;
-            if (window.location.pathname !== '/') {
-              window.history.pushState(null, '', '/');
-            }
-            requestAnimationFrame(() => inputRef.current?.focus());
-          }}
+          onClose={closeViewer}
           onNavigate={handleViewerNavigate}
         />
       )}

@@ -1,9 +1,9 @@
 // ============================================================
 // Content Viewer - Overlay panel for reading blog posts
-// Supports vim-style keybindings: j/k/Ctrl+d/u/G/gg// /n/N
+// Supports vim-style keybindings: Ctrl+d/u/G/gg// /n/N
 // ============================================================
 
-import { useEffect, useRef, useState, useCallback } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'preact/hooks';
 
 interface Props {
   title: string;
@@ -95,18 +95,37 @@ export function clearHighlights(container: HTMLElement) {
 }
 
 export default function ContentViewer({ title, html, onClose, onNavigate }: Props) {
+  const viewerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Search state
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchOpenRef = useRef(false);
   const matchElementsRef = useRef<HTMLElement[]>([]);
   const matchIndexRef = useRef(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // gg double-press detection
   const gBufferRef = useRef<number | null>(null);
+
+  const focusViewerBody = useCallback(() => {
+    if (searchOpenRef.current) return;
+    document.querySelector<HTMLInputElement>('.input-field')?.blur();
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    const focus = () => {
+      viewerRef.current?.focus({ preventScroll: true });
+      bodyRef.current?.focus({ preventScroll: true });
+    };
+
+    focus();
+    requestAnimationFrame(focus);
+    setTimeout(focus, 0);
+  }, []);
 
   const scrollToMatch = useCallback((direction: 'next' | 'prev') => {
     const matches = matchElementsRef.current;
@@ -145,6 +164,7 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
 
   // Open search bar
   const openSearch = useCallback(() => {
+    searchOpenRef.current = true;
     setSearchOpen(true);
     setSearchQuery('');
     matchIndexRef.current = -1;
@@ -154,11 +174,13 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
 
   // Close search bar and clear highlights
   const closeSearch = useCallback(() => {
+    searchOpenRef.current = false;
     setSearchOpen(false);
     setSearchQuery('');
     matchIndexRef.current = -1;
     matchElementsRef.current = [];
     if (bodyRef.current) clearHighlights(bodyRef.current);
+    requestAnimationFrame(() => bodyRef.current?.focus({ preventScroll: true }));
   }, []);
 
   // Apply search highlights immediately (bypass debounce). Returns match count.
@@ -183,7 +205,9 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
         matchElementsRef.current[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
+    searchOpenRef.current = false;
     setSearchOpen(false);
+    requestAnimationFrame(() => bodyRef.current?.focus({ preventScroll: true }));
     // Keep matchElementsRef so n/N can navigate
   }, [searchQuery, applyHighlightImmediate]);
 
@@ -215,136 +239,147 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
   }, [searchQuery, searchOpen]);
 
   // Keyboard handler — vim keybindings
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Search mode keys
-      if (searchOpen) {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          closeSearch();
-          return;
-        }
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          commitSearch();
-          return;
-        }
-        // n/N work in both search and normal mode
-        if (e.key === 'n' && matchElementsRef.current.length > 0) {
-          e.preventDefault();
-          scrollToMatch('next');
-          return;
-        }
-        if (e.key === 'N' && matchElementsRef.current.length > 0) {
-          e.preventDefault();
-          scrollToMatch('prev');
-          return;
-        }
-        // Don't intercept typing in search input
+  const handleViewerKeyDown = useCallback((e: KeyboardEvent) => {
+    const eventKey = typeof e.key === 'string' ? e.key : '';
+    const noCommandModifier = !e.ctrlKey && !e.altKey && !e.metaKey;
+    const isPlainKey = (key: string, code: string) =>
+      noCommandModifier && !e.shiftKey && (
+        eventKey.toLowerCase() === key ||
+        e.code === code
+      );
+    const isShiftKey = (key: string, code: string) =>
+      noCommandModifier && e.shiftKey && (
+        eventKey === key ||
+        e.code === code
+      );
+
+    const consume = () => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    };
+
+    // Search mode keys
+    if (searchOpen) {
+      if (e.key === 'Escape') {
+        consume();
+        closeSearch();
         return;
       }
-
-      const body = bodyRef.current;
-      if (!body) return;
-
-      // j/k — scroll by 3 lines
-      if (e.key === 'j') {
-        e.preventDefault();
-        body.scrollTop += getLineHeight(body) * 3;
+      if (e.key === 'Enter') {
+        consume();
+        commitSearch();
         return;
       }
-      if (e.key === 'k') {
-        e.preventDefault();
-        body.scrollTop -= getLineHeight(body) * 3;
-        return;
-      }
-
-      // Ctrl+d — half page down
-      if (e.key === 'd' && e.ctrlKey) {
-        e.preventDefault();
-        const lh = getLineHeight(body);
-        body.scrollTop += (body.clientHeight - lh * 2) * 0.5;
-        return;
-      }
-
-      // Ctrl+u — half page up
-      if (e.key === 'u' && e.ctrlKey) {
-        e.preventDefault();
-        const lh = getLineHeight(body);
-        body.scrollTop -= (body.clientHeight - lh * 2) * 0.5;
-        return;
-      }
-
-      // G — scroll to bottom
-      if (e.key === 'G') {
-        e.preventDefault();
-        body.scrollTop = body.scrollHeight;
-        return;
-      }
-
-      // g — first press buffers, second press (gg) scrolls to top
-      if (e.key === 'g') {
-        e.preventDefault();
-        const now = Date.now();
-        if (gBufferRef.current && now - gBufferRef.current < 500) {
-          body.scrollTop = 0;
-          gBufferRef.current = null;
-        } else {
-          gBufferRef.current = now;
-        }
-        return;
-      }
-
-      // / — open search
-      if (e.key === '/') {
-        e.preventDefault();
-        openSearch();
-        return;
-      }
-
-      // n — next search match (only when matches exist)
-      if (e.key === 'n' && matchElementsRef.current.length > 0) {
-        e.preventDefault();
+      // n/N work in both search and normal mode
+      if (isPlainKey('n', 'KeyN') && matchElementsRef.current.length > 0) {
+        consume();
         scrollToMatch('next');
         return;
       }
-
-      // N — previous search match (only when matches exist)
-      if (e.key === 'N' && matchElementsRef.current.length > 0) {
-        e.preventDefault();
+      if (isShiftKey('N', 'KeyN') && matchElementsRef.current.length > 0) {
+        consume();
         scrollToMatch('prev');
         return;
       }
+      // Don't intercept typing in search input
+      return;
+    }
 
-      // q or Esc — close viewer
-      if (e.key === 'Escape' || e.key === 'q') {
-        onClose();
-        return;
+    const body = bodyRef.current;
+    if (!body) return;
+
+    // Ctrl+d — half page down
+    if (e.key === 'd' && e.ctrlKey) {
+      consume();
+      const lh = getLineHeight(body);
+      body.scrollTop += (body.clientHeight - lh * 2) * 0.5;
+      return;
+    }
+
+    // Ctrl+u — half page up
+    if (e.key === 'u' && e.ctrlKey) {
+      consume();
+      const lh = getLineHeight(body);
+      body.scrollTop -= (body.clientHeight - lh * 2) * 0.5;
+      return;
+    }
+
+    // G — scroll to bottom
+    if (isShiftKey('G', 'KeyG')) {
+      consume();
+      body.scrollTop = body.scrollHeight;
+      return;
+    }
+
+    // g — first press buffers, second press (gg) scrolls to top
+    if (isPlainKey('g', 'KeyG')) {
+      consume();
+      const now = Date.now();
+      if (gBufferRef.current && now - gBufferRef.current < 500) {
+        body.scrollTop = 0;
+        gBufferRef.current = null;
+      } else {
+        gBufferRef.current = now;
       }
-    };
+      return;
+    }
 
-    document.addEventListener('keydown', handleKeyDown);
+    // / — open search
+    if (noCommandModifier && (eventKey === '/' || e.code === 'Slash')) {
+      consume();
+      openSearch();
+      return;
+    }
+
+    // n — next search match (only when matches exist)
+    if (isPlainKey('n', 'KeyN') && matchElementsRef.current.length > 0) {
+      consume();
+      scrollToMatch('next');
+      return;
+    }
+
+    // N — previous search match (only when matches exist)
+    if (isShiftKey('N', 'KeyN') && matchElementsRef.current.length > 0) {
+      consume();
+      scrollToMatch('prev');
+      return;
+    }
+
+    // q or Esc — close viewer
+    if (eventKey === 'Escape' || isPlainKey('q', 'KeyQ')) {
+      consume();
+      onClose();
+      return;
+    }
+  }, [onClose, searchOpen, closeSearch, commitSearch, scrollToMatch, openSearch]);
+
+  useLayoutEffect(() => {
+    window.addEventListener('keydown', handleViewerKeyDown, { capture: true });
+    document.addEventListener('keydown', handleViewerKeyDown, { capture: true });
     document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleViewerKeyDown, { capture: true });
+      document.removeEventListener('keydown', handleViewerKeyDown, { capture: true });
       document.body.style.overflow = '';
       document.querySelector<HTMLInputElement>('.input-field')?.focus();
     };
-  }, [onClose, searchOpen, closeSearch, commitSearch, scrollToMatch, openSearch]);
+  }, [handleViewerKeyDown]);
 
   // Focus viewer body on mount so keyboard events dispatch
-  useEffect(() => {
-    bodyRef.current?.focus();
-  }, []);
+  useLayoutEffect(() => {
+    focusViewerBody();
+  }, [focusViewerBody]);
 
   // Scroll to top when content changes
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (bodyRef.current) {
       bodyRef.current.scrollTop = 0;
     }
+    focusViewerBody();
     // Reset search state when content changes
     closeSearch();
-  }, [html]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [html, focusViewerBody]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialize mermaid diagrams after content loads
   useEffect(() => {
@@ -456,9 +491,16 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
     : '';
 
   return (
-    <div class="content-viewer" onClick={(e) => {
-      if (e.target === e.currentTarget) onClose();
-    }}>
+    <div
+      class="content-viewer"
+      ref={viewerRef}
+      tabIndex={-1}
+      onKeyDownCapture={handleViewerKeyDown}
+      onClick={(e) => {
+        focusViewerBody();
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div class="content-viewer-panel">
         <div class="viewer-header">
           <div class="title-dots">
@@ -492,8 +534,6 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
           </div>
         )}
         <div class="viewer-hint">
-          <kbd>j</kbd><kbd>k</kbd> scroll
-          {' '}
           <kbd>Ctrl+d</kbd><kbd>Ctrl+u</kbd> half-page
           {' '}
           <kbd>/</kbd> search
