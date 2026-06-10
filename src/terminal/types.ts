@@ -22,6 +22,15 @@ export interface PostMeta {
   text?: string;
 }
 
+export interface PostContent {
+  title: string;
+  html: string;
+  slug: string;
+  date?: string;
+  tags?: string[];
+  reading_time?: number;
+}
+
 export interface ContentIndex {
   posts: PostMeta[];
   tags: string[];
@@ -33,7 +42,7 @@ export interface CommandContext {
   cwd: string;
   output: (html: string, className?: string) => void;
   appendInputLine: (cmd: string) => void;
-  openViewer: (title: string, html: string, slug: string) => void;
+  openViewer: (post: PostContent) => void;
   getCurrentFiles: () => FileEntry[];
   setCwd: (path: string) => void;
   _history?: string[];

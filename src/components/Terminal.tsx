@@ -6,10 +6,10 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import ContentViewer, { getLineHeight } from './ContentViewer';
 import { executeCommand, getPrompt, getAllCommands } from '../terminal/commands';
-import { loadFileSystem, listDir, resolvePath, fetchPostContent } from '../terminal/file-tree';
+import { loadFileSystem, listDir, resolvePath, fetchPostContent, getAllPosts } from '../terminal/file-tree';
 import { completeTerminalInput, type TabCycleState } from '../terminal/autocomplete';
 import { quoteCommandArg } from '../terminal/command-line';
-import type { FileEntry } from '../terminal/types';
+import type { FileEntry, PostContent, PostMeta } from '../terminal/types';
 import config from '../config';
 
 interface OutputLine {
@@ -17,25 +17,89 @@ interface OutputLine {
   isInput?: boolean;
 }
 
-interface ViewerState {
-  title: string;
-  html: string;
-  slug: string;
+type ViewerState = PostContent;
+
+function esc(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-// Boot sequence
-const BANNER = [
-  `<div style="margin:4px 0 6px;font-family:'JetBrains Mono',monospace;">
-    <div style="font-size:20px;font-weight:800;letter-spacing:2px;line-height:1.3;">
-      <span style="color:var(--${config.terminal.brandColor})">${config.terminal.brand}</span><span style="color:var(--surface2)">.</span><span style="color:var(--mauve)">${config.terminal.brandSuffix}</span>
-      <span style="font-size:12px;font-weight:400;color:var(--subtext);margin-left:8px;letter-spacing:0.5px;"><a href="mailto:${config.terminal.email}" style="color:var(--subtext);text-decoration:none;">${config.terminal.email}</a></span>
-    </div>
-    <div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--surface1);font-size:13px;color:var(--overlay);">
-      Type <span style="color:var(--yellow)">'help'</span> for commands, or click anything to explore.
-    </div>
-  </div>`,
-  '',
-];
+function formatDate(date?: string): string {
+  return date ? date.split('T')[0] : '';
+}
+
+function renderPostRow(post: PostMeta, index: number): string {
+  const meta = [
+    formatDate(post.date),
+    post.reading_time ? `${post.reading_time} min` : '',
+    ...post.tags.slice(0, 2),
+  ].filter(Boolean).join(' / ');
+
+  return `<div class="welcome-post">
+    <span class="welcome-post-index">${String(index + 1).padStart(2, '0')}</span>
+    <span class="welcome-post-title clickable-file" data-action="cat" data-slug="${esc(post.slug)}">${esc(post.title)}</span>
+    <span class="welcome-post-meta">${esc(meta)}</span>
+  </div>`;
+}
+
+function renderCommand(label: string, cmd: string): string {
+  return `<span class="welcome-command clickable-file" data-action="cmd" data-cmd="${esc(cmd)}">${esc(label)}</span>`;
+}
+
+function renderBootLines(): string[] {
+  const posts = getAllPosts().filter(post => post.slug !== 'index');
+  const postsBySlug = new Map(posts.map(post => [post.slug.toLowerCase(), post]));
+  const configuredFeatured = config.home.featuredSlugs
+    .map(slug => postsBySlug.get(slug.toLowerCase()))
+    .filter((post): post is PostMeta => Boolean(post));
+  const featured = configuredFeatured.length > 0
+    ? configuredFeatured
+    : posts.slice(0, 3);
+  const featuredSlugs = new Set(featured.map(post => post.slug));
+  const recent = posts
+    .filter(post => !featuredSlugs.has(post.slug))
+    .slice(0, 4);
+
+  const featuredHtml = featured.length > 0
+    ? featured.map(renderPostRow).join('')
+    : '<div class="welcome-muted">No published notes yet.</div>';
+  const recentHtml = recent.length > 0
+    ? recent.map(renderPostRow).join('')
+    : '<div class="welcome-muted">Run recent after more notes are published.</div>';
+
+  return [
+    `<div class="terminal-welcome">
+      <div class="welcome-brand-row">
+        <div class="welcome-brand">
+          <span style="color:var(--${config.terminal.brandColor})">${esc(config.terminal.brand)}</span><span style="color:var(--surface2)">.</span><span style="color:var(--mauve)">${esc(config.terminal.brandSuffix)}</span>
+        </div>
+        <a class="welcome-email" href="mailto:${esc(config.terminal.email)}">${esc(config.terminal.email)}</a>
+      </div>
+      <div class="welcome-tagline">${esc(config.home.tagline)}</div>
+      <div class="welcome-grid">
+        <section class="welcome-section">
+          <div class="welcome-section-title">Featured</div>
+          ${featuredHtml}
+        </section>
+        <section class="welcome-section">
+          <div class="welcome-section-title">Recent</div>
+          ${recentHtml}
+        </section>
+      </div>
+      <div class="welcome-actions">
+        ${renderCommand('about', 'about')}
+        ${renderCommand('recent', 'recent')}
+        ${renderCommand('ls notebook/', 'ls notebook/')}
+        ${renderCommand('grep agent', 'grep agent')}
+        ${renderCommand('help', 'help')}
+      </div>
+    </div>`,
+    '',
+  ];
+}
 
 const MIN_W = 480;
 const MIN_H = 360;
@@ -99,17 +163,19 @@ export default function Terminal() {
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       const hasVisited = localStorage.getItem('terminal-booted');
 
+      const bootLines = renderBootLines();
+
       if (prefersReducedMotion || hasVisited) {
         // Skip animation — show all at once
-        setLines(BANNER.map(html => ({ html })));
+        setLines(bootLines.map(html => ({ html })));
         setReady(true);
       } else {
         // Typing animation for first visit
         const typedLines: OutputLine[] = [];
         let idx = 0;
         const animate = () => {
-          if (idx < BANNER.length) {
-            typedLines.push({ html: BANNER[idx] });
+          if (idx < bootLines.length) {
+            typedLines.push({ html: bootLines[idx] });
             setLines([...typedLines]);
             idx++;
             const delay = 80;
@@ -126,7 +192,7 @@ export default function Terminal() {
       if (initialSlug) {
         fetchPostContent(initialSlug).then(result => {
           if (result) {
-            setViewer({ title: result.title, html: result.html, slug: initialSlug });
+            setViewer(result);
             document.title = `${result.title} | ${config.site.title}`;
             // Use replaceState since this is restoring, not a new navigation
             window.history.replaceState({ slug: initialSlug, title: result.title }, '', `/blog/${initialSlug}/`);
@@ -188,7 +254,8 @@ export default function Terminal() {
   // Auto-scroll to bottom
   useEffect(() => {
     if (bodyRef.current) {
-      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+      const showingBootOutput = lines.length <= 2 && lines.some(line => line.html.includes('terminal-welcome'));
+      bodyRef.current.scrollTop = showingBootOutput ? 0 : bodyRef.current.scrollHeight;
     }
   }, [lines, ready]);
 
@@ -209,7 +276,7 @@ export default function Terminal() {
         const slug = decodeURIComponent(m[1]);
         fetchPostContent(slug).then(result => {
           if (result) {
-            setViewer({ title: result.title, html: result.html, slug });
+            setViewer(result);
             document.title = `${result.title} | ${config.site.title}`;
           }
         });
@@ -277,13 +344,14 @@ export default function Terminal() {
     setLines(prev => [...prev, { html: `<span class="terminal-prompt">${getPrompt(cwd)}</span>${cmd}`, isInput: true }]);
   }, [cwd]);
 
-  const openViewer = useCallback((title: string, html: string, slug: string) => {
+  const openViewer = useCallback((post: PostContent) => {
     inputRef.current?.blur();
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
-    setViewer({ title, html, slug });
+    setViewer(post);
     // Sync URL to browser history
+    const { slug, title } = post;
     const url = `/blog/${slug}/`;
     document.title = `${title} | ${config.site.title}`;
     if (window.location.pathname !== url) {
@@ -312,7 +380,7 @@ export default function Terminal() {
     const hash = href.includes('#') ? decodeURIComponent(href.split('#')[1]) : null;
     fetchPostContent(slug).then(result => {
       if (result) {
-        openViewer(result.title, result.html, slug);
+        openViewer(result);
         // Scroll to anchor after content renders
         if (hash) {
           requestAnimationFrame(() => {
@@ -594,6 +662,10 @@ export default function Terminal() {
         <ContentViewer
           title={viewer.title}
           html={viewer.html}
+          date={viewer.date}
+          tags={viewer.tags}
+          readingTime={viewer.reading_time}
+          slug={viewer.slug}
           onClose={closeViewer}
           onNavigate={handleViewerNavigate}
         />

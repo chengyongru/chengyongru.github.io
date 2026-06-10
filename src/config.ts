@@ -23,6 +23,13 @@ export interface TerminalConfig {
   email: string;
 }
 
+export interface HomeConfig {
+  /** One-line editorial positioning shown on terminal boot. */
+  tagline: string;
+  /** Curated posts shown before recent posts. Slugs must match generated post IDs. */
+  featuredSlugs: string[];
+}
+
 export interface NeofetchConfig {
   os: string;
   host: string;
@@ -51,6 +58,7 @@ export interface PublishConfig {
 export interface Config {
   site: SiteConfig;
   terminal: TerminalConfig;
+  home: HomeConfig;
   neofetch: NeofetchConfig;
   /** Directory descriptions for `ls` output. Key = directory path (e.g. "notebook/") */
   dirs: Record<string, string>;
@@ -72,6 +80,15 @@ const config: Config = {
     brandSuffix: 'ML',
     hostname: 'chengyongru',
     email: 'chengyongru.ai@gmail.com',
+  },
+
+  home: {
+    tagline: 'Maintainer of nanobot. Notes on AI agents, ML, security, reverse engineering, and debugging.',
+    featuredSlugs: [
+      'notebook/agent 每天都在犯什么错',
+      'notebook/关于 lief 库解析 pe 文件死循环问题的排查与分析',
+      'notebook/梯度下降',
+    ],
   },
 
   neofetch: {

@@ -242,7 +242,7 @@ html {
   letter-spacing: 0.3px;
   font-family: 'JetBrains Mono', monospace;
   color: var(--subtext);
-  opacity: 0.12;
+  opacity: 0.075;
   user-select: none;
   -webkit-user-select: none;
   contain: layout style;

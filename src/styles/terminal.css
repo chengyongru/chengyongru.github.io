@@ -77,6 +77,99 @@
   line-height: 1.6;
 }
 
+/* ===== Editorial Boot Output ===== */
+.terminal-welcome {
+  padding: 6px 0 2px;
+  white-space: normal;
+}
+
+.welcome-brand-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.welcome-brand {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  line-height: 1.25;
+}
+
+.welcome-email {
+  color: var(--subtext);
+  font-size: 12px;
+}
+
+.welcome-tagline {
+  max-width: 760px;
+  color: var(--subtext);
+  margin-bottom: 18px;
+  line-height: 1.65;
+}
+
+.welcome-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--surface1) 45%, transparent);
+}
+
+.welcome-section-title {
+  color: var(--yellow);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.welcome-post {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 1px;
+  padding: 4px 0;
+}
+
+.welcome-post-index {
+  color: var(--overlay);
+  font-size: 12px;
+}
+
+.welcome-post-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.welcome-post-meta {
+  grid-column: 2;
+  color: var(--overlay);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.welcome-muted {
+  color: var(--overlay);
+}
+
+.welcome-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.welcome-command {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 1px 8px;
+  border: 1px solid color-mix(in srgb, var(--surface1) 55%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
 /* ===== Terminal Output ===== */
 .terminal-line {
   white-space: pre-wrap;
@@ -190,8 +283,9 @@
 }
 
 .viewer-body.prose {
-  max-width: none;
-  margin: 0;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
   padding: 32px 40px;
 }
 
@@ -201,6 +295,7 @@
   text-align: center;
   padding: 8px 16px;
   border-top: 1px solid color-mix(in srgb, var(--surface1) 40%, transparent);
+  opacity: 0.78;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -318,6 +413,23 @@
   .terminal-body {
     padding: 12px 14px;
     font-size: 13px;
+  }
+
+  .welcome-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .welcome-brand {
+    font-size: 19px;
+  }
+
+  .welcome-tagline {
+    margin-bottom: 14px;
+  }
+
+  .welcome-actions {
+    gap: 6px;
   }
 
   .viewer-body {

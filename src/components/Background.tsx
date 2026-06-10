@@ -209,9 +209,9 @@ export async function initBackground(): Promise<() => void> {
 
   // --- Per-pixel spotlight coloring via CSS gradient ---
 
-  const BASE_OPACITY = 0.12;
-  const MAX_OPACITY = 0.65;
-  const OPACITY_BOOST = 0.55;
+  const BASE_OPACITY = 0.07;
+  const MAX_OPACITY = 0.32;
+  const OPACITY_BOOST = 0.28;
   const COLOR_THRESHOLD = 0.005;
   const GRAD_SAMPLES = 10;
 

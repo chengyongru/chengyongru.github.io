@@ -3,7 +3,7 @@
 // Loads content-index.json and provides file navigation
 // ============================================================
 
-import type { ContentIndex, FileEntry, PostMeta } from './types';
+import type { ContentIndex, FileEntry, PostContent, PostMeta } from './types';
 import { shouldFilterSlug, BLOCKED_DIRS } from './constants';
 
 let index: ContentIndex | null = null;
@@ -116,7 +116,7 @@ export function getPostUrl(slug: string): string {
 }
 
 /** Fetch a blog post's content by extracting the article from the rendered page */
-export async function fetchPostContent(slug: string): Promise<{ title: string; html: string } | null> {
+export async function fetchPostContent(slug: string): Promise<PostContent | null> {
   const url = getPostUrl(slug);
   try {
     const res = await fetch(url);
@@ -129,9 +129,14 @@ export async function fetchPostContent(slug: string): Promise<{ title: string; h
     const title = article.querySelector('h1')?.textContent || slug;
     article.querySelector('.post-header')?.remove();
     article.querySelector('.post-footer')?.remove();
+    const meta = index?.posts.find(p => p.slug.toLowerCase() === slug.toLowerCase());
     return {
       title,
       html: article.innerHTML,
+      slug,
+      date: meta?.date,
+      tags: meta?.tags,
+      reading_time: meta?.reading_time,
     };
   } catch {
     return null;

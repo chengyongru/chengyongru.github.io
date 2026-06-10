@@ -2,33 +2,34 @@
 
 .prose {
   color: var(--text);
-  line-height: 1.7;
-  font-size: 15px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.78;
+  font-size: 16px;
 }
 
-/* Headings — each level gets a distinct color for visual hierarchy */
+/* Headings */
 .prose h1 {
-  color: var(--green);
+  color: var(--text);
   font-size: 1.5em;
   margin-top: 1.5em;
   margin-bottom: 0.6em;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .prose h2 {
-  color: var(--lavender);
+  color: var(--text);
   font-size: 1.3em;
   margin-top: 1.8em;
   margin-bottom: 0.5em;
   font-weight: 700;
   padding-bottom: 0.3em;
   border-bottom: 1px solid color-mix(in srgb, var(--surface1) 40%, transparent);
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .prose h3 {
-  color: var(--blue);
+  color: var(--rosewater);
   font-size: 1.15em;
   margin-top: 1.4em;
   margin-bottom: 0.4em;
@@ -118,6 +119,7 @@
   background: none;
   padding: 0;
   color: var(--text);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
   font-size: 0.88em;
   border: none;
 }
@@ -549,10 +551,53 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--yellow) 50%, transparent);
 }
 
+/* Viewer article header */
+.viewer-post-header {
+  margin-bottom: 1.8em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid color-mix(in srgb, var(--surface1) 45%, transparent);
+}
+
+.viewer-post-header h1 {
+  color: var(--text);
+  font-size: 1.75em;
+  line-height: 1.28;
+  margin: 0 0 0.55em;
+  letter-spacing: 0;
+}
+
+.viewer-post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--overlay);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.viewer-post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.viewer-post-tags span {
+  color: var(--subtext);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--surface1) 45%, transparent);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
 /* ===== Mobile Content Adjustments ===== */
 @media (max-width: 768px) {
   .prose {
-    font-size: 14px;
+    font-size: 15px;
   }
 
   .prose pre,
@@ -567,6 +612,10 @@
   }
 
   .viewer-body.prose {
-    padding: 16px 14px;
+    padding: 20px 18px;
+  }
+
+  .viewer-post-header h1 {
+    font-size: 1.45em;
   }
 }

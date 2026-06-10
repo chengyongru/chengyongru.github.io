@@ -8,6 +8,10 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'preac
 interface Props {
   title: string;
   html: string;
+  date?: string;
+  tags?: string[];
+  readingTime?: number;
+  slug?: string;
   onClose: () => void;
   onNavigate?: (url: string) => void;
 }
@@ -94,7 +98,11 @@ export function clearHighlights(container: HTMLElement) {
   }
 }
 
-export default function ContentViewer({ title, html, onClose, onNavigate }: Props) {
+function formatDate(date?: string): string {
+  return date ? date.split('T')[0] : '';
+}
+
+export default function ContentViewer({ title, html, date, tags = [], readingTime, slug, onClose, onNavigate }: Props) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -515,8 +523,22 @@ export default function ContentViewer({ title, html, onClose, onNavigate }: Prop
           class="viewer-body prose"
           ref={bodyRef}
           tabIndex={-1}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        >
+          <header class="viewer-post-header">
+            <h1>{title}</h1>
+            <div class="viewer-post-meta">
+              {formatDate(date) && <span>{formatDate(date)}</span>}
+              {readingTime && <span>{readingTime} min read</span>}
+              {slug && <span>{slug}</span>}
+            </div>
+            {tags.length > 0 && (
+              <div class="viewer-post-tags">
+                {tags.map(tag => <span key={tag}>{tag}</span>)}
+              </div>
+            )}
+          </header>
+          <div dangerouslySetInnerHTML={{ __html: html }} />
+        </div>
         {searchOpen && (
           <div class="vim-search-bar">
             <span class="vim-search-prompt">/</span>
