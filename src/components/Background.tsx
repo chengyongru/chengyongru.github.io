@@ -2,12 +2,12 @@
 // Background - Text flowing around the terminal window
 // Uses @chenglou/pretext for text layout. Pure DOM, no framework.
 // Optimized: only re-layouts when terminal position changes.
-// Three-body spotlight: gravitational simulation tints text
+// Three-body spotlight: three stable moving light centers tint text
 // with blue/mauve/green via per-pixel CSS gradients.
 // Colors only appear on text, never on the background.
 // ============================================================
 
-interface SpotBody { x: number; y: number; vx: number; vy: number }
+interface SpotBody { x: number; y: number }
 
 export async function initBackground(): Promise<() => void> {
   if (window.innerWidth <= 768) return () => {};
@@ -73,7 +73,7 @@ export async function initBackground(): Promise<() => void> {
     return allLines;
   }
 
-  // --- Three-body gravitational simulation ---
+  // --- Three-body spotlight choreography ---
 
   const VARS = ['--blue', '--mauve', '--green'] as const;
 
@@ -97,77 +97,60 @@ export async function initBackground(): Promise<() => void> {
   const themeObserver = new MutationObserver(() => { spotColors = readColors(); });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-  const G = 800;
-  const SOFT = 80;
-  const SOFT2 = SOFT * SOFT;
-  const VMAX = 2.5;
-
   let W = window.innerWidth;
   let H = window.innerHeight;
   let cx = W / 2, cy = H / 2;
-  const spread = Math.min(W, H) * 0.25;
-  const orbitV = 0.8;
+  const TAU = Math.PI * 2;
 
-  const bodies: SpotBody[] = [0, 1, 2].map(i => {
-    const a = -Math.PI / 2 + i * 2.094;
-    return {
-      x: cx + Math.cos(a) * spread,
-      y: cy + Math.sin(a) * spread,
-      vx: Math.cos(a + 1.5708) * orbitV,
-      vy: Math.sin(a + 1.5708) * orbitV,
-    };
-  });
+  const bodies: SpotBody[] = [0, 1, 2].map(() => ({ x: cx, y: cy }));
 
   // Cache terminal element ref (Fix #1: avoid repeated querySelector)
   const termRef = document.querySelector('.terminal-window');
 
-  function stepBodies(termRect: DOMRect | null) {
-    const ax = [0, 0, 0], ay = [0, 0, 0];
+  function clamp(n: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, n));
+  }
 
-    for (let i = 0; i < 3; i++) {
-      for (let j = i + 1; j < 3; j++) {
-        const dx = bodies[j].x - bodies[i].x;
-        const dy = bodies[j].y - bodies[i].y;
-        const d2 = dx * dx + dy * dy + SOFT2;
-        const d = Math.sqrt(d2);
-        const f = G / d2;
-        const fx = f * dx / d, fy = f * dy / d;
-        ax[i] += fx; ay[i] += fy;
-        ax[j] -= fx; ay[j] -= fy;
-      }
+  function bendAroundTerminal(body: SpotBody, termRect: DOMRect | null): SpotBody {
+    if (!termRect) return body;
+
+    const pad = 80;
+    const left = termRect.left - pad;
+    const right = termRect.right + pad;
+    const top = termRect.top - pad;
+    const bottom = termRect.bottom + pad;
+    if (body.x < left || body.x > right || body.y < top || body.y > bottom) {
+      return body;
     }
 
+    const dl = body.x - left;
+    const dr = right - body.x;
+    const dt = body.y - top;
+    const db = bottom - body.y;
+    const minD = Math.min(dl, dr, dt, db);
+
+    if (minD === dl) return { x: left, y: body.y };
+    if (minD === dr) return { x: right, y: body.y };
+    if (minD === dt) return { x: body.x, y: top };
+    return { x: body.x, y: bottom };
+  }
+
+  function stepBodies(now: number, termRect: DOMRect | null) {
+    const t = now * 0.00018;
+    const radiusX = clamp(W * 0.34, 260, 620);
+    const radiusY = clamp(H * 0.36, 190, 360);
+    const braid = clamp(Math.min(W, H) * 0.12, 80, 150);
+    const margin = 36;
+
     for (let i = 0; i < 3; i++) {
-      const b = bodies[i];
-      b.vx += ax[i]; b.vy += ay[i];
-      b.vx += (cx - b.x) * 1e-5;
-      b.vy += (cy - b.y) * 1e-5;
-      const spd = Math.hypot(b.vx, b.vy);
-      if (spd > VMAX) { b.vx *= VMAX / spd; b.vy *= VMAX / spd; }
-      b.x += b.vx; b.y += b.vy;
-      // Viewport boundary bounce
-      const m = 40;
-      if (b.x < m) { b.x = m; b.vx = Math.abs(b.vx) * 0.5; }
-      if (b.x > W - m) { b.x = W - m; b.vx = -Math.abs(b.vx) * 0.5; }
-      if (b.y < m) { b.y = m; b.vy = Math.abs(b.vy) * 0.5; }
-      if (b.y > H - m) { b.y = H - m; b.vy = -Math.abs(b.vy) * 0.5; }
-      // Terminal boundary bounce (Fix #5: flat if/else, no object allocation)
-      if (termRect) {
-        const tb = 50;
-        const tLeft = termRect.left - tb;
-        const tRight = termRect.right + tb;
-        const tTop = termRect.top - tb;
-        const tBottom = termRect.bottom + tb;
-        if (b.x > tLeft && b.x < tRight && b.y > tTop && b.y < tBottom) {
-          const dl = b.x - tLeft, dr = tRight - b.x;
-          const dt = b.y - tTop, db = tBottom - b.y;
-          const minD = Math.min(dl, dr, dt, db);
-          if (minD === dl) { b.x = tLeft; b.vx = -Math.abs(b.vx) * 0.5; }
-          else if (minD === dr) { b.x = tRight; b.vx = Math.abs(b.vx) * 0.5; }
-          else if (minD === dt) { b.y = tTop; b.vy = -Math.abs(b.vy) * 0.5; }
-          else { b.y = tBottom; b.vy = Math.abs(b.vy) * 0.5; }
-        }
-      }
+      const phase = t + i * TAU / 3;
+      const body = {
+        x: cx + Math.sin(phase) * radiusX + Math.sin(phase * 2.0 + i * 0.7) * braid,
+        y: cy + Math.sin(phase) * Math.cos(phase) * radiusY + Math.cos(phase * 1.5 + i * 1.2) * braid * 0.55,
+      };
+      const bent = bendAroundTerminal(body, termRect);
+      bodies[i].x = clamp(bent.x, margin, W - margin);
+      bodies[i].y = clamp(bent.y, margin, H - margin);
     }
   }
 
@@ -209,15 +192,15 @@ export async function initBackground(): Promise<() => void> {
 
   // --- Per-pixel spotlight coloring via CSS gradient ---
 
-  const BASE_OPACITY = 0.07;
-  const MAX_OPACITY = 0.32;
-  const OPACITY_BOOST = 0.28;
-  const COLOR_THRESHOLD = 0.005;
-  const GRAD_SAMPLES = 10;
+  const BASE_OPACITY = 0.055;
+  const MAX_OPACITY = 0.86;
+  const OPACITY_BOOST = 0.76;
+  const COLOR_THRESHOLD = 0.003;
+  const GRAD_SAMPLES = 22;
 
   function updateLineColors() {
     if (!committed) return;
-    const R = Math.min(W, H) * 0.18;
+    const R = clamp(Math.min(W, H) * 0.24, 180, 320);
     const R2 = R * R;
     const halfLH = LINE_HEIGHT / 2;
 
@@ -257,8 +240,8 @@ export async function initBackground(): Promise<() => void> {
           const dy = ly - bodies[j].y;
           // Fix #4: squared distance falloff, no sqrt
           const dist2 = dx * dx + dy * dy;
-          const t = dist2 / R2;
-          const weight = t < 1 ? (1 - t) * (1 - t) : 0;
+          const u = dist2 / R2;
+          const weight = u < 1 ? Math.pow(1 - u, 2.4) : 0;
           totalR += spotColors[j][0] * weight;
           totalG += spotColors[j][1] * weight;
           totalB += spotColors[j][2] * weight;
@@ -301,7 +284,7 @@ export async function initBackground(): Promise<() => void> {
     // Use cached termRef, compute rect once per frame (Fix #1)
     const termRect = termRef ? termRef.getBoundingClientRect() : null;
 
-    stepBodies(termRect);
+    stepBodies(now, termRect);
 
     if (!prepared) return;
 

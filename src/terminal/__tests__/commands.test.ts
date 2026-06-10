@@ -523,17 +523,16 @@ describe('cmdTHEME', () => {
     executeCommand('theme', ctx);
     const output = getOutputText(ctx);
     expect(output).toContain('Available Themes');
-    expect(output).toContain('Catppuccin');
-    expect(output).toContain('Dracula');
-    expect(output).toContain('Gruvbox');
-    expect(output).toContain('Solarized');
+    expect(output).toContain('Dark');
+    expect(output).toContain('Light');
+    expect(output).not.toContain('Catppuccin');
   });
 
   it('should switch to a valid theme', () => {
     const ctx = createMockCtx();
-    executeCommand('theme dracula', ctx);
-    expect(getOutputText(ctx)).toContain('Dracula');
-    expect(localStorage.setItem).toHaveBeenCalledWith('theme', 'dracula');
+    executeCommand('theme light', ctx);
+    expect(getOutputText(ctx)).toContain('Light');
+    expect(localStorage.setItem).toHaveBeenCalledWith('theme', 'light');
   });
 
   it('should report error for unknown theme', () => {
@@ -811,7 +810,7 @@ describe('empty command', () => {
 describe('cmdTHEME current theme marker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const store: Record<string, string> = { theme: 'dracula' };
+    const store: Record<string, string> = { theme: 'light' };
     vi.stubGlobal('localStorage', {
       getItem: vi.fn((k: string) => store[k] || null),
       setItem: vi.fn((k: string, v: string) => { store[k] = v; }),

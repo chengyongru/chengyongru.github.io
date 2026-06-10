@@ -11,6 +11,7 @@ import {
   fetchPostContent,
 } from './file-tree';
 import { parseCommandLine } from './command-line';
+import { THEMES, THEME_LABELS, normalizeTheme, type ThemeName } from './theme';
 import config from '../config';
 
 function esc(str: string): string {
@@ -305,7 +306,7 @@ function cmdHELP(ctx: CommandContext, _onCommandFromOutput?: (cmd: string) => vo
 <tr><td style="color:var(--green);padding-right:16px;white-space:nowrap;">date</td><td style="color:var(--subtext)">Show current date/time</td></tr>
 <tr><td style="color:var(--green);padding-right:16px;white-space:nowrap;">history</td><td style="color:var(--subtext)">Command history</td></tr>
 <tr><td style="color:var(--green);padding-right:16px;white-space:nowrap;">pwd</td><td style="color:var(--subtext)">Print working directory</td></tr>
-<tr><td style="color:var(--green);padding-right:16px;white-space:nowrap;">theme [name]</td><td style="color:var(--subtext)">Switch theme (catppuccin/dracula/gruvbox/solarized)</td></tr>
+<tr><td style="color:var(--green);padding-right:16px;white-space:nowrap;">theme [name]</td><td style="color:var(--subtext)">Switch theme (dark/light)</td></tr>
 <tr><td style="color:var(--green);padding-right:16px;white-space:nowrap;">clear</td><td style="color:var(--subtext)">Clear terminal</td></tr>
 </table>
 <div style="color:var(--overlay);margin-top:8px;">Tip: Blue items are clickable. Try clicking a filename!</div>`;
@@ -409,7 +410,7 @@ function cmdABOUT(ctx: CommandContext): void {
 
 // ---- neofetch ----
 function cmdNEOFETCH(ctx: CommandContext): void {
-  const theme = (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) || 'catppuccin';
+  const theme = normalizeTheme(typeof localStorage !== 'undefined' ? localStorage.getItem('theme') : null);
 
   const nf = config.neofetch;
   const items = [
@@ -488,19 +489,9 @@ function cmdPWD(ctx: CommandContext): void {
   ctx.output(ctx.cwd === '/' ? '/' : ctx.cwd.replace(/\/$/, ''));
 }
 
-// ---- theme ----
-const THEMES = ['catppuccin', 'dracula', 'gruvbox', 'solarized', 'github-light'] as const;
-const THEME_LABELS: Record<string, string> = {
-  catppuccin: 'Catppuccin Mocha',
-  dracula: 'Dracula',
-  gruvbox: 'Gruvbox Dark',
-  solarized: 'Solarized Dark',
-  'github-light': 'GitHub Light',
-};
-
 function cmdTHEME(args: string[], ctx: CommandContext): void {
   if (args.length === 0) {
-    const current = (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) || 'catppuccin';
+    const current = normalizeTheme(typeof localStorage !== 'undefined' ? localStorage.getItem('theme') : null);
     let output = '<div style="color:var(--mauve);font-weight:bold;">Available Themes:</div>\n';
     for (const t of THEMES) {
       const marker = t === current ? ' <span style="color:var(--green)">&lt;&lt;</span>' : '';
@@ -511,14 +502,15 @@ function cmdTHEME(args: string[], ctx: CommandContext): void {
   }
 
   const name = args[0].toLowerCase();
-  if (!THEMES.includes(name as any)) {
+  if (!THEMES.includes(name as ThemeName)) {
     ctx.output(`<span style="color:var(--red)">Unknown theme: ${esc(name)}. Available: ${THEMES.join(', ')}</span>`);
     return;
   }
 
+  const theme = name as ThemeName;
   if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('theme', name);
+    localStorage.setItem('theme', theme);
   }
-  document.documentElement.setAttribute('data-theme', name);
-  ctx.output(`<span style="color:var(--green)">Theme switched to ${THEME_LABELS[name]}</span>`);
+  document.documentElement.setAttribute('data-theme', theme);
+  ctx.output(`<span style="color:var(--green)">Theme switched to ${THEME_LABELS[theme]}</span>`);
 }

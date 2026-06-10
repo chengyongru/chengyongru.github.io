@@ -5,8 +5,8 @@ A terminal-style blog template built with Astro, Preact, and Tailwind CSS.
 ![shell.garden screenshot](docs/screenshot.png)
 
 Your blog, but it's a terminal. Visitors explore your content via command-line
-(`ls`, `cd`, `cat`, `grep`, `tag`, `neofetch`...) with vim keybindings, 5 color
-themes, and a three-body gravitational spotlight background.
+(`ls`, `cd`, `cat`, `grep`, `tag`, `neofetch`...) with vim keybindings,
+light/dark themes, and a three-body spotlight background.
 
 ## Quick Start
 
@@ -68,7 +68,7 @@ The rules apply to generated `/blog/...` pages, `content-index.json`, the termin
 
 - **15 terminal commands**: ls, cd, cat, grep, tag, recent, about, neofetch, help, clear, theme, whoami, echo, date, history, pwd
 - **Vim keybindings** in the content viewer (j/k, Ctrl+d/u, G/gg, /, n/N, q)
-- **5 themes**: Catppuccin Mocha, Dracula, Gruvbox Dark, Solarized Dark, GitHub Light
+- **Light/dark themes**: restrained palettes tuned for reading and the terminal UI
 - **Markdown**: KaTeX math, Mermaid diagrams, Obsidian callouts & highlights, code highlighting
 - **Three-body spotlight** background animation
 - **Draggable & resizable** terminal window

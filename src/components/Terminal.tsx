@@ -9,6 +9,7 @@ import { executeCommand, getPrompt, getAllCommands } from '../terminal/commands'
 import { loadFileSystem, listDir, resolvePath, fetchPostContent, getAllPosts } from '../terminal/file-tree';
 import { completeTerminalInput, type TabCycleState } from '../terminal/autocomplete';
 import { quoteCommandArg } from '../terminal/command-line';
+import { normalizeTheme } from '../terminal/theme';
 import type { FileEntry, PostContent, PostMeta } from '../terminal/types';
 import config from '../config';
 
@@ -148,8 +149,10 @@ export default function Terminal() {
   useEffect(() => {
     // Restore saved theme
     const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      document.documentElement.setAttribute('data-theme', savedTheme);
+    const theme = normalizeTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', theme);
+    if (savedTheme !== theme) {
+      localStorage.setItem('theme', theme);
     }
 
     // Check URL for a blog post to restore

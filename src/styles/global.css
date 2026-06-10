@@ -16,140 +16,59 @@
   font-display: swap;
 }
 
-/* ===== Catppuccin Mocha (default) ===== */
+/* ===== Dark (default) ===== */
 :root,
-[data-theme="catppuccin"] {
-  --bg: #1e1e2e;
-  --surface: #181825;
-  --surface1: #313244;
-  --surface2: #45475a;
-  --crust: #11111b;
-  --mantle: #181825;
-  --text: #cdd6f4;
-  --subtext: #a6adc8;
-  --overlay: #6c7086;
-  --accent: #89b4fa;
-  --green: #a6e3a1;
-  --red: #f38ba8;
-  --yellow: #f9e2af;
-  --peach: #fab387;
-  --mauve: #cba6f7;
-  --teal: #94e2d5;
-  --blue: #89b4fa;
-  --pink: #f5c2e7;
-  --sky: #89dceb;
-  --lavender: #b4befe;
-  --maroon: #eba0ac;
-  --rosewater: #f5e0dc;
-  --flamingo: #f2cdcd;
+[data-theme="dark"] {
+  --bg: #17181d;
+  --surface: #202127;
+  --surface1: #30323a;
+  --surface2: #454852;
+  --crust: #0d0e11;
+  --mantle: #14151a;
+  --text: #e7e2d5;
+  --subtext: #aaa497;
+  --overlay: #746f66;
+  --accent: #c2a15f;
+  --green: #8eb38a;
+  --red: #cc827a;
+  --yellow: #d1b66e;
+  --peach: #c99a69;
+  --mauve: #a99ac0;
+  --teal: #80aaa0;
+  --blue: #8fa6bf;
+  --pink: #c096aa;
+  --sky: #86adba;
+  --lavender: #aaa3c2;
+  --maroon: #b9787f;
+  --rosewater: #efe6d9;
+  --flamingo: #d5aaa3;
 }
 
-/* ===== Dracula ===== */
-[data-theme="dracula"] {
-  --bg: #282a36;
-  --surface: #21222c;
-  --surface1: #34354b;
-  --surface2: #44475a;
-  --crust: #191a21;
-  --mantle: #21222c;
-  --text: #f8f8f2;
-  --subtext: #a8a0c0;
-  --overlay: #6272a4;
-  --accent: #8be9fd;
-  --green: #50fa7b;
-  --red: #ff5555;
-  --yellow: #f1fa8c;
-  --peach: #ffb86c;
-  --mauve: #bd93f9;
-  --teal: #8be9fd;
-  --blue: #8be9fd;
-  --pink: #ff79c6;
-  --sky: #8be9fd;
-  --lavender: #bd93f9;
-  --maroon: #ff79c6;
-  --rosewater: #f8f8f2;
-  --flamingo: #ff79c6;
-}
-
-/* ===== Gruvbox Dark ===== */
-[data-theme="gruvbox"] {
-  --bg: #282828;
-  --surface: #1d2021;
-  --surface1: #3c3836;
-  --surface2: #504945;
-  --crust: #131516;
-  --mantle: #1d2021;
-  --text: #ebdbb2;
-  --subtext: #928374;
-  --overlay: #665c54;
-  --accent: #83a598;
-  --green: #b8bb26;
-  --red: #fb4934;
-  --yellow: #fabd2f;
-  --peach: #fe8019;
-  --mauve: #d3869b;
-  --teal: #8ec07c;
-  --blue: #83a598;
-  --pink: #d3869b;
-  --sky: #83a598;
-  --lavender: #8ec07c;
-  --maroon: #fb4934;
-  --rosewater: #ebdbb2;
-  --flamingo: #d3869b;
-}
-
-/* ===== Solarized Dark ===== */
-[data-theme="solarized"] {
-  --bg: #002b36;
-  --surface: #073642;
-  --surface1: #0a4652;
-  --surface2: #0d5666;
-  --crust: #001e26;
-  --mantle: #073642;
-  --text: #93a1a1;
-  --subtext: #657b83;
-  --overlay: #4a5d66;
-  --accent: #268bd2;
-  --green: #859900;
-  --red: #dc322f;
-  --yellow: #b58900;
-  --peach: #cb4b16;
-  --mauve: #6c71c4;
-  --teal: #2aa198;
-  --blue: #268bd2;
-  --pink: #d33682;
-  --sky: #268bd2;
-  --lavender: #6c71c4;
-  --maroon: #dc322f;
-  --rosewater: #93a1a1;
-  --flamingo: #d33682;
-}
-
-/* ===== GitHub Light ===== */
-[data-theme="github-light"] {
-  --bg: #ffffff;
-  --surface: #f6f8fa;
-  --surface1: #d0d7de;
-  --surface2: #afb8c1;
-  --crust: #f6f8fa;
-  --mantle: #f6f8fa;
-  --text: #1f2328;
-  --subtext: #656d76;
-  --overlay: #8c959f;
-  --accent: #0969da;
-  --green: #1a7f37;
-  --red: #d1242f;
-  --yellow: #9a6700;
-  --peach: #bc4c00;
-  --mauve: #8250df;
-  --teal: #0a3069;
-  --blue: #0969da;
-  --pink: #bf3989;
-  --sky: #0550ae;
-  --lavender: #6e40c9;
-  --maroon: #953800;
-  --rosewater: #24292f;
-  --flamingo: #cf222e;
+/* ===== Light ===== */
+[data-theme="light"] {
+  --bg: #fbfaf7;
+  --surface: #efeee9;
+  --surface1: #d9d7cf;
+  --surface2: #b7b3a8;
+  --crust: #f3f3ef;
+  --mantle: #ebeae5;
+  --text: #262520;
+  --subtext: #5f5b53;
+  --overlay: #878176;
+  --accent: #7d622e;
+  --green: #4f7856;
+  --red: #a85b54;
+  --yellow: #8a6d2f;
+  --peach: #966740;
+  --mauve: #716486;
+  --teal: #4f7a73;
+  --blue: #536d86;
+  --pink: #896174;
+  --sky: #557987;
+  --lavender: #706989;
+  --maroon: #8f555a;
+  --rosewater: #37342e;
+  --flamingo: #945f59;
 }
 
 /* ===== Reset ===== */
