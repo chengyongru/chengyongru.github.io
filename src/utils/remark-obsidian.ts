@@ -7,18 +7,43 @@ import type { Root, Parent, BlockContent } from 'mdast';
  * Handles:
  * 1. %%comments%% → removed
  * 2. ==highlights== → <mark> elements
- * 3. > [!type] callouts → data-callout attributes + emoji titles (supports +/- for fold)
+ * 3. > [!type] callouts → data-callout attributes + terminal labels (supports +/- for fold)
  * 4. Internal .md links → /blog/{slug}/ (SEO-friendly, server-side)
  *
  * Execution order matters: comments → highlights → callouts → links.
  */
 
-const CALLOUT_ICONS: Record<string, string> = {
-  note: '\u2139\uFE0F', tip: '\uD83D\uDCA1', summary: '\uD83D\uDCCB', seealso: '\uD83D\uDD17',
-  abstract: '\uD83D\uDCDD', info: '\u2139\uFE0F', todo: '\u2611\uFE0F', warning: '\u26A0\uFE0F',
-  danger: '\uD83D\uDEAB', bug: '\uD83D\uDC1B', example: '\uD83D\uDCA1', quote: '\uD83D\uDCAC',
-  success: '\u2705', question: '\u2753', failure: '\u274C', theorem: '\u25B3',
+const CALLOUT_LABELS: Record<string, string> = {
+  note: 'NOTE',
+  info: 'INFO',
+  tip: 'TIP',
+  todo: 'TODO',
+  summary: 'SUM',
+  abstract: 'ABS',
+  tldr: 'TLDR',
+  seealso: 'REF',
+  question: 'Q',
+  warning: 'WARN',
+  danger: 'DANGER',
+  bug: 'BUG',
+  failure: 'FAIL',
+  success: 'OK',
+  example: 'EXAMPLE',
+  quote: 'QUOTE',
+  theorem: 'THM',
 };
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function calloutLabel(type: string): string {
+  return CALLOUT_LABELS[type] || type.toUpperCase();
+}
 
 /**
  * Slugify to match Astro's generateId in content.config.ts:
@@ -110,7 +135,7 @@ export function remarkObsidian() {
 
       const [, type, fold, rest] = match;
       const calloutType = type.toLowerCase();
-      const icon = CALLOUT_ICONS[calloutType] || '\uD83D\uDCCC';
+      const label = calloutLabel(calloutType);
       const isFoldable = fold === '-' || fold === '+';
       const defaultOpen = fold === '+';
 
@@ -124,14 +149,13 @@ export function remarkObsidian() {
       } else {
         titleText = rest.trim();
       }
-
       node.data = node.data || {};
       node.data.hProperties = { 'data-callout': calloutType };
 
       const titleEl = {
         type: 'paragraph',
-        children: [{ type: 'text', value: `${icon} ${titleText}` }],
-        data: { hProperties: { 'data-callout-title': '' } },
+        children: [{ type: 'text', value: titleText }],
+        data: { hProperties: { 'data-callout-title': '', 'data-callout-label': label } },
       };
 
       const otherChildren = node.children.slice(1);
@@ -146,7 +170,7 @@ export function remarkObsidian() {
       if (isFoldable) {
         const summaryEl = {
           type: 'html' as const,
-          value: `<summary>${icon} ${titleText}</summary>`,
+          value: `<summary data-callout-label="${escapeHtml(label)}"><span class="callout-token">[${escapeHtml(label)}]</span>${escapeHtml(titleText)}</summary>`,
         };
         node.children = [
           { type: 'html' as const, value: `<details${defaultOpen ? ' open' : ''}>` },

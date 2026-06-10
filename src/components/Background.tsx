@@ -112,8 +112,62 @@ export async function initBackground(): Promise<() => void> {
 
   const bodies: SpotBody[] = [0, 1, 2].map(() => ({ x: cx, y: cy }));
 
-  // Cache terminal element ref (Fix #1: avoid repeated querySelector)
-  const termRef = document.querySelector('.terminal-window');
+  let termRef: HTMLElement | null = null;
+  let cachedTermRect: DOMRect | null = null;
+  let cachedTermKey = 'none';
+  let geometryDirty = true;
+  let lastRectCheck = 0;
+  let trackTermUntil = performance.now() + 1500;
+
+  function getTerminalElement(): HTMLElement | null {
+    if (!termRef || !termRef.isConnected) {
+      termRef = document.querySelector<HTMLElement>('.terminal-window');
+    }
+    return termRef;
+  }
+
+  function getTerminalRect(): DOMRect | null {
+    const el = getTerminalElement();
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 ? rect : null;
+  }
+
+  function rectKey(rect: DOMRect | null): string {
+    return rect
+      ? `${Math.round(rect.left)},${Math.round(rect.top)},${Math.round(rect.width)},${Math.round(rect.height)}`
+      : 'none';
+  }
+
+  async function waitForStableTerminalRect(): Promise<DOMRect | null> {
+    let previous = '';
+    let stableFrames = 0;
+
+    for (let i = 0; i < 12; i++) {
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      const rect = getTerminalRect();
+      const key = rectKey(rect);
+      stableFrames = key === previous && rect ? stableFrames + 1 : 0;
+      previous = key;
+      if (stableFrames >= 2) return rect;
+    }
+
+    return getTerminalRect();
+  }
+
+  function refreshTerminalRect(force = false, now = performance.now()): DOMRect | null {
+    if (!force && now - lastRectCheck < 240) return cachedTermRect;
+    lastRectCheck = now;
+
+    const rect = getTerminalRect();
+    const key = rectKey(rect);
+    if (key !== cachedTermKey) {
+      cachedTermRect = rect;
+      cachedTermKey = key;
+      geometryDirty = true;
+    }
+    return cachedTermRect;
+  }
 
   function clamp(n: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, n));
@@ -205,11 +259,11 @@ export async function initBackground(): Promise<() => void> {
   const MAX_OPACITY = 0.86;
   const OPACITY_BOOST = 0.76;
   const COLOR_THRESHOLD = 0.003;
-  const GRAD_SAMPLES = perfMode === 'lite' ? 12 : 22;
+  const GRAD_SAMPLES = perfMode === 'lite' ? 8 : 12;
 
   function updateLineColors() {
     if (!committed) return;
-    const R = clamp(Math.min(W, H) * 0.24, 180, 320);
+    const R = clamp(Math.min(W, H) * 0.2, 160, 280);
     const R2 = R * R;
     const halfLH = LINE_HEIGHT / 2;
 
@@ -250,7 +304,8 @@ export async function initBackground(): Promise<() => void> {
           // Fix #4: squared distance falloff, no sqrt
           const dist2 = dx * dx + dy * dy;
           const u = dist2 / R2;
-          const weight = u < 1 ? Math.pow(1 - u, 2.4) : 0;
+          const falloff = 1 - u;
+          const weight = u < 1 ? falloff * falloff : 0;
           totalR += spotColors[j][0] * weight;
           totalG += spotColors[j][1] * weight;
           totalB += spotColors[j][2] * weight;
@@ -282,7 +337,7 @@ export async function initBackground(): Promise<() => void> {
 
   let lastCacheKey = '';
   let lastFrame = 0;
-  const DT = perfMode === 'lite' ? 66 : 33;
+  const DT = perfMode === 'static' ? 250 : perfMode === 'lite' ? 66 : 33;
 
   function render(now: number) {
     rafId = requestAnimationFrame(render);
@@ -290,24 +345,30 @@ export async function initBackground(): Promise<() => void> {
     if (now - lastFrame < DT) return;
     lastFrame = now;
 
-    // Use cached termRef, compute rect once per frame (Fix #1)
-    const termRect = termRef ? termRef.getBoundingClientRect() : null;
+    const shouldTrackTerminal = geometryDirty || now < trackTermUntil || now - lastRectCheck > 240;
+    const termRect = shouldTrackTerminal ? refreshTerminalRect(true, now) : cachedTermRect;
 
-    stepBodies(now, termRect);
+    if (perfMode !== 'static') {
+      stepBodies(now, termRect);
+    }
 
     if (!prepared) return;
 
     const curW = window.innerWidth;
     const curH = window.innerHeight;
+    if (curW !== W || curH !== H) {
+      W = curW;
+      H = curH;
+      cx = W / 2;
+      cy = H / 2;
+      geometryDirty = true;
+    }
 
-    const termKey = termRect
-      ? `${Math.round(termRect.left)},${Math.round(termRect.top)},${Math.round(termRect.width)},${Math.round(termRect.height)}`
-      : 'none';
-    const cacheKey = `${curW}x${curH}|${termKey}`;
+    const cacheKey = `${curW}x${curH}|${cachedTermKey}`;
 
-    if (cacheKey !== lastCacheKey) {
+    if (geometryDirty || cacheKey !== lastCacheKey) {
       lastCacheKey = cacheKey;
-      W = curW; H = curH; cx = W / 2; cy = H / 2;
+      geometryDirty = false;
       const allLines = layoutAllLines(prepared, W, H, termRect);
 
       const prev = committed;
@@ -320,15 +381,29 @@ export async function initBackground(): Promise<() => void> {
       if (changed) commitLines(allLines);
     }
 
-    updateLineColors();
+    if (perfMode !== 'static') {
+      updateLineColors();
+    }
   }
 
   // --- Resize (Fix #8: just set dirty, render handles state) ---
 
   const onResize = () => {
     if (window.innerWidth <= 768) cancelAnimationFrame(rafId);
+    geometryDirty = true;
+    trackTermUntil = performance.now() + 500;
   };
   window.addEventListener('resize', onResize);
+
+  const onMouseMove = (event: MouseEvent) => {
+    if (event.buttons) trackTermUntil = performance.now() + 150;
+  };
+  const onMouseUp = () => {
+    geometryDirty = true;
+    trackTermUntil = performance.now() + 300;
+  };
+  window.addEventListener('mousemove', onMouseMove, { capture: true });
+  window.addEventListener('mouseup', onMouseUp, { capture: true });
 
   // --- Init ---
 
@@ -347,16 +422,13 @@ export async function initBackground(): Promise<() => void> {
   await document.fonts.ready;
   prepared = prepareWithSegments(text, font);
 
-  const initialTermRect = termRef ? termRef.getBoundingClientRect() : null;
+  const initialTermRect = await waitForStableTerminalRect();
+  cachedTermRect = initialTermRect;
+  cachedTermKey = rectKey(initialTermRect);
+  lastRectCheck = performance.now();
   commitLines(layoutAllLines(prepared, W, H, initialTermRect));
-
-  if (perfMode === 'static') {
-    return () => {
-      themeObserver.disconnect();
-      window.removeEventListener('resize', onResize);
-      stage.remove();
-    };
-  }
+  lastCacheKey = `${W}x${H}|${cachedTermKey}`;
+  geometryDirty = false;
 
   rafId = requestAnimationFrame(render);
 
@@ -365,6 +437,8 @@ export async function initBackground(): Promise<() => void> {
     cancelAnimationFrame(rafId);
     themeObserver.disconnect();
     window.removeEventListener('resize', onResize);
+    window.removeEventListener('mousemove', onMouseMove, { capture: true });
+    window.removeEventListener('mouseup', onMouseUp, { capture: true });
     stage.remove();
   };
 }

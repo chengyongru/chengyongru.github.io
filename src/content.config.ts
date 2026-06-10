@@ -17,6 +17,14 @@ const blog = defineCollection({
   loader: safeContentGlob({
     pattern: contentPatterns,
     base: './content',
+    cacheDependencies: [
+      'astro.config.mjs',
+      'src/content.config.ts',
+      'src/utils/remark-image-path.ts',
+      'src/utils/remark-mermaid.ts',
+      'src/utils/remark-obsidian.ts',
+      'src/utils/safe-content-loader.ts',
+    ],
     generateId: ({ entry }) => entry.replace(/\.md$/i, '').toLowerCase(),
     shouldSkipEntry: entry => shouldFilterSlug(entry.replace(/\.md$/i, '').toLowerCase()),
   }),

@@ -121,15 +121,16 @@ describe('callout transformation', () => {
     expect(blockquote.data?.hProperties?.['data-callout']).toBe('danger');
   });
 
-  it('should include emoji icon in title', async () => {
+  it('should render terminal label instead of emoji in title', async () => {
     const tree = await processAst('> [!note] My Title\n> Body');
     const blockquote = tree.children.find(
       (c: any) => c.type === 'blockquote',
     ) as any;
     const titlePara = blockquote.children[0];
     const titleText = titlePara.children[0]?.value || '';
-    // Should contain an emoji
-    expect(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1FFFF}]/u.test(titleText)).toBe(true);
+    expect(titlePara.data?.hProperties?.['data-callout-label']).toBe('NOTE');
+    expect(titleText).toBe('My Title');
+    expect(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1FFFF}]/u.test(titleText)).toBe(false);
   });
 
   it('should handle callout without body', async () => {
@@ -161,7 +162,8 @@ describe('collapsible callouts', () => {
     expect(bq.data?.hProperties?.['data-callout-fold']).toBeDefined();
     const htmlNodes = findHtmlNodes(bq);
     expect(htmlNodes.some((h: string) => h.includes('<details>') && !h.includes('<details open'))).toBe(true);
-    expect(htmlNodes.some((h: string) => h.includes('<summary>'))).toBe(true);
+    expect(htmlNodes.some((h: string) => h.includes('<summary data-callout-label="NOTE">'))).toBe(true);
+    expect(htmlNodes.some((h: string) => h.includes('<span class="callout-token">[NOTE]</span>'))).toBe(true);
   });
 
   it('should transform > [!tip]+ as expanded callout', async () => {
@@ -313,16 +315,16 @@ describe('highlight with surrounding text', () => {
 });
 
 describe('callout unknown type', () => {
-  it('should use default clipboard icon for unknown callout type', async () => {
+  it('should use uppercased terminal label for unknown callout type', async () => {
     const tree = await processAst('> [!unknown] Custom\n> Body');
     const bq = tree.children.find((c: any) => c.type === 'blockquote') as any;
     expect(bq).toBeDefined();
     expect(bq.data?.hProperties?.['data-callout']).toBe('unknown');
     const titlePara = bq.children[0];
     const titleText = titlePara.children[0]?.value || '';
-    // Should contain an emoji (default is 📋 for unknown types, but 📌 for 'pin')
+    expect(titlePara.data?.hProperties?.['data-callout-label']).toBe('UNKNOWN');
+    expect(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1FFFF}]/u.test(titleText)).toBe(false);
     expect(titleText.length).toBeGreaterThan(0);
-    // Should contain the title text
     expect(titleText).toContain('Custom');
   });
 

@@ -244,30 +244,30 @@
   font-size: 1.05em;
 }
 
-/* ===== Callouts (Obsidian syntax) — data attributes ===== */
+/* ===== Callouts (Obsidian syntax) — terminal blocks ===== */
 
 /*
  * Structure: <blockquote data-callout="{type}"> rendered by remark-obsidian.ts
- * Mirrors Obsidian's native callout styling:
- *   - Left accent bar (2px) via border-left
- *   - Asymmetric padding (extra left space for accent bar clearance)
- *   - 10% opacity background tint per type
- *   - Title row: icon + text, colored by accent
- *   - Collapsible: <details>/<summary> with chevron rotation
+ * Keeps Obsidian's syntax while rendering a quieter terminal-native treatment:
+ *   - Left accent rail plus thin box border
+ *   - Monospace [TYPE] token instead of emoji
+ *   - Low-opacity background tint per type
+ *   - Collapsible: <details>/<summary> with prompt-style chevron
  */
 
-/* Base callout — matches Obsidian's .callout container */
 .prose [data-callout] {
   --callout-accent: var(--overlay);
-  --callout-bg: color-mix(in srgb, var(--callout-accent) 10%, transparent);
+  --callout-bg: color-mix(in srgb, var(--callout-accent) 7%, var(--surface) 45%);
+  --callout-border: color-mix(in srgb, var(--callout-accent) 26%, var(--surface1));
 
-  padding: 12px 12px 12px 24px;
-  margin-bottom: 1em;
+  padding: 12px 14px 12px 18px;
+  margin: 1.1em 0;
   border-radius: 4px;
-  border: none;
-  border-left: 2px solid var(--callout-accent);
+  border: 1px solid var(--callout-border);
+  border-left: 3px solid var(--callout-accent);
   background: var(--callout-bg);
   line-height: 1.6;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent);
 }
 
 .prose [data-callout] > *:first-child {
@@ -277,21 +277,40 @@
   margin-bottom: 0;
 }
 
-/* Callout title row — matches Obsidian's .callout-title */
 .prose [data-callout] p[data-callout-title] {
   display: flex;
   align-items: flex-start;
-  gap: 4px;
-  font-weight: 600;
-  font-size: 1em;
-  margin: 0 0 4px 0;
-  line-height: 1.3;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.95em;
+  margin: 0 0 6px 0;
+  line-height: 1.4;
   color: var(--callout-accent);
+}
+
+.prose [data-callout] p[data-callout-title]::before,
+.prose [data-callout-fold] .callout-token {
+  content: '[' attr(data-callout-label) ']';
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 5.6em;
+  color: var(--callout-accent);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.78em;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.prose [data-callout-fold] .callout-token {
+  margin-right: 8px;
 }
 
 /* Body content slightly dimmed vs title (Obsidian behavior) */
 .prose [data-callout] > :not(p[data-callout-title]):not(details):not(summary) {
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 /* ── Type-specific colors (mapped to Obsidian's palette) ── */
@@ -381,14 +400,14 @@
 .prose [data-callout-fold] summary {
   cursor: pointer;
   color: var(--callout-accent, var(--text));
-  font-weight: 600;
-  font-size: 1em;
-  line-height: 1.3;
+  font-weight: 700;
+  font-size: 0.95em;
+  line-height: 1.4;
   list-style: none;
   padding: 0;
   display: flex;
   align-items: flex-start;
-  gap: 4px;
+  gap: 0;
   user-select: none;
   outline: none;
 }
@@ -400,18 +419,20 @@
   content: '';
 }
 
-/* Chevron indicator — small triangle matching Obsidian's chevron */
+/* Prompt-style fold indicator */
 .prose [data-callout-fold] summary::before {
-  content: '\25B8';
-  font-size: 0.7em;
+  content: '>';
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.85em;
+  font-weight: 700;
   flex-shrink: 0;
   transition: transform 100ms ease-in-out;
-  margin-top: 0.2em;
+  margin: 0 8px 0 0;
   color: var(--callout-accent, currentColor);
 }
 
 .prose [data-callout-fold] details[open] > summary::before {
-  transform: rotate(90deg);
+  transform: rotate(90deg) translateX(1px);
 }
 
 /* Obsidian .md embeds */

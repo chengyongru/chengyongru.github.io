@@ -15,6 +15,7 @@ interface SafeContentGlobOptions {
   pattern: string | string[];
   base: string | URL;
   generateId: (options: GenerateIdOptions) => string;
+  cacheDependencies?: string[];
   retainBody?: boolean;
   shouldSkipEntry?: (entry: string) => boolean;
 }
@@ -25,6 +26,26 @@ function toPosixRelative(from: string, to: string): string {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function cacheDependencyDigest(
+  root: URL,
+  dependencies: string[] | undefined,
+  generateDigest: (input: string) => string,
+): Promise<string> {
+  if (!dependencies?.length) return '';
+
+  const parts = await Promise.all(
+    dependencies.map(async (dependency) => {
+      const fileUrl = new URL(dependency, root);
+      const contents = await fs.readFile(fileUrl, 'utf-8').catch((error) => {
+        return `missing:${errorMessage(error)}`;
+      });
+      return `${dependency}:${generateDigest(contents)}`;
+    }),
+  );
+
+  return generateDigest(parts.join('\n'));
 }
 
 export function safeContentGlob(options: SafeContentGlobOptions): Loader {
@@ -66,6 +87,12 @@ export function safeContentGlob(options: SafeContentGlobOptions): Loader {
         return;
       }
 
+      const renderCacheDigest = await cacheDependencyDigest(
+        config.root,
+        options.cacheDependencies,
+        generateDigest,
+      );
+
       function entryTypeFor(entry: string) {
         const ext = entry.split('.').at(-1);
         return ext ? entryTypes.get(`.${ext}`) : undefined;
@@ -102,7 +129,10 @@ export function safeContentGlob(options: SafeContentGlobOptions): Loader {
         untouchedEntries.delete(id);
 
         const existingEntry = store.get(id);
-        const digest = generateDigest(contents);
+        const contentDigest = generateDigest(contents);
+        const digest = renderCacheDigest
+          ? generateDigest(`${contentDigest}:${renderCacheDigest}`)
+          : contentDigest;
         if (existingEntry && existingEntry.digest === digest && existingEntry.filePath) {
           if (existingEntry.deferredRender) {
             store.addModuleImport(existingEntry.filePath);

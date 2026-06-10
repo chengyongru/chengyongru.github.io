@@ -31,6 +31,8 @@ Thumbs.db
 
 # Prototype debug screenshots
 prototype-*.png
+test-results/
+playwright-report/
 
 # Content to exclude from deployment
 content/_obsidian/
