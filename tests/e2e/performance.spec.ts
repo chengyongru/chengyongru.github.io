@@ -97,6 +97,42 @@ test('article callouts use terminal labels without emoji', async ({ page }) => {
   await page.screenshot({ path: `${evidenceDir}/callout-terminal.png`, fullPage: true });
 });
 
+test('light theme keeps plaintext code blocks readable', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('theme', 'light'));
+  const response = await page.goto(url('/blog/notebook/%E7%86%B5/'));
+  expect(response?.ok()).toBeTruthy();
+  await expect(page.locator('.content-viewer')).toBeVisible();
+
+  const contrast = await page.evaluate(() => {
+    const parseRgb = (value: string) => {
+      const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if (!match) throw new Error(`Unsupported color: ${value}`);
+      return [Number(match[1]), Number(match[2]), Number(match[3])];
+    };
+    const luminance = ([r, g, b]: number[]) => {
+      const channel = (n: number) => {
+        const s = n / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    };
+
+    const pre = [...document.querySelectorAll<HTMLElement>('.content-viewer pre.astro-code')]
+      .find(block => block.textContent?.includes('A -> 00'));
+    if (!pre) throw new Error('Missing plaintext code block');
+    const sample = pre.querySelector<HTMLElement>('code span span') || pre.querySelector<HTMLElement>('code');
+    if (!sample) throw new Error('Missing code sample');
+
+    const fg = parseRgb(getComputedStyle(sample).color);
+    const bg = parseRgb(getComputedStyle(pre).backgroundColor);
+    const l1 = luminance(fg);
+    const l2 = luminance(bg);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  });
+
+  expect(contrast).toBeGreaterThan(4.5);
+});
+
 test('local KaTeX fonts are served', async ({ request }) => {
   const response = await request.get(url('/vendor/katex/fonts/KaTeX_Size2-Regular.ttf'));
   expect(response.ok()).toBeTruthy();

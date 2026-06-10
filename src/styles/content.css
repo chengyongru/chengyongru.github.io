@@ -106,7 +106,11 @@
 
 /* Code blocks — left accent bar for visual distinction */
 .prose pre {
-  background: var(--surface);
+  --code-block-bg: var(--surface);
+  --code-block-fg: var(--text);
+
+  background: var(--code-block-bg);
+  color: var(--code-block-fg);
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;
@@ -118,7 +122,7 @@
 .prose pre code {
   background: none;
   padding: 0;
-  color: var(--text);
+  color: inherit;
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
   font-size: 0.88em;
   border: none;
@@ -486,6 +490,11 @@
 
 /* Shiki overrides */
 .prose pre.astro-code {
+  --code-block-bg: #24292e;
+  --code-block-fg: #e1e4e8;
+
+  background: var(--code-block-bg) !important;
+  color: var(--code-block-fg) !important;
   padding: 16px;
   border-radius: 8px;
   margin-bottom: 1em;

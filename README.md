@@ -11,13 +11,15 @@ light/dark themes, and a three-body spotlight background.
 ## Quick Start
 
 1. **Fork or clone** this repository
-2. **Edit `src/config.ts`** — change all personal info to yours
-3. **Replace `content/`** — add your own markdown notes
-4. **Deploy** — push to GitHub Pages or any static host
+2. **Install dependencies** — run `npm install`
+3. **Edit `src/config.ts`** — change all personal info to yours
+4. **Replace `content/`** — add your own markdown notes
+5. **Build and verify** — run `npm run build`, then `npx playwright test`
+6. **Deploy** — push to GitHub Pages or any static host
 
 ## What to Customize
 
-### `src/config.ts` (the only file you need to edit)
+### `src/config.ts`
 
 | Section | What it controls |
 |---------|-----------------|
@@ -28,6 +30,10 @@ light/dark themes, and a three-body spotlight background.
 | `dirs` | Directory names and descriptions for `ls` |
 | `rss` | RSS feed title and description |
 | `publish` | Tag-based publication rules |
+
+Most forks should only need `src/config.ts`, `content/`, and optional public
+assets. The renderer, command system, and publication pipeline are already wired
+for reusable blog-framework defaults.
 
 ### Content
 
@@ -55,6 +61,8 @@ Frontmatter schema:
 ---
 title: My Post
 date: 2025-01-01
+created: 2025-01-01
+modify_date: 2025-01-02
 tags: [tag1, tag2]
 draft: false
 mathjax: true
@@ -98,7 +106,7 @@ Publication rules live in `src/config.ts`:
 ```ts
 publish: {
   requireTags: true,       // notes without tags are not generated publicly
-  blockedTags: ['todo'],   // notes tagged todo are not generated publicly
+  blockedTags: ['todo', 'english'],
   alwaysPublishSlugs: ['index'],
 }
 ```
@@ -112,11 +120,12 @@ are hidden, as are `_obsidian`, `.obsidian`, `.trash`, `.claude`, `clippings`,
 
 ## Features
 
-- **15 terminal commands**: ls, cd, cat, grep, tag, recent, about, neofetch, help, clear, theme, whoami, echo, date, history, pwd
-- **Vim keybindings** in the content viewer (j/k, Ctrl+d/u, G/gg, /, n/N, q)
+- **16 terminal commands**: `ls`, `cd`, `cat`, `grep`, `tag`, `recent`, `about`, `neofetch`, `help`, `clear`, `theme`, `whoami`, `echo`, `date`, `history`, `pwd`
+- **Vim-style reader keys** in the content viewer: `Ctrl+d/u`, `G`, `gg`, `/`, `n/N`, `q`, `Esc`
 - **Light/dark themes**: restrained palettes tuned for reading and the terminal UI
-- **Markdown**: KaTeX math, Mermaid diagrams, Obsidian callouts & highlights, code highlighting
-- **Three-body spotlight** background animation
+- **Markdown**: KaTeX math, Mermaid diagrams, Obsidian highlights, terminal-style callouts, Shiki code highlighting
+- **Self-hosted KaTeX**: article pages load local CSS and fonts from `/vendor/katex/`
+- **Three-body spotlight** background animation with terminal-aware text avoidance
 - **Draggable & resizable** terminal window
 - **Tab completion** with cycling
 - **RSS feed** and SEO-friendly hidden article markup
@@ -133,13 +142,19 @@ are hidden, as are `_obsidian`, `.obsidian`, `.trash`, `.claude`, `clippings`,
 
 ## Commands
 
-| Command | `npm run ...` |
-|---------|---------------|
-| Dev server | `dev` |
-| Build | `build` |
-| Preview | `preview` |
-| Test | `test` |
-| Asset audit | `audit:assets` |
+| Task | Command |
+|------|---------|
+| Dev server | `npm run dev` |
+| Static build | `npm run build` |
+| Preview built site | `npm run preview` |
+| Type/Astro diagnostics | `npm run check` |
+| Unit tests | `npx vitest run` |
+| Browser verification | `npx playwright test` |
+| Asset audit | `npm run audit:assets` |
+
+`playwright.config.ts` builds the site and starts `astro preview` automatically
+unless `PLAYWRIGHT_BASE_URL` is already set. Use `PLAYWRIGHT_PORT` to change the
+default preview port (`4321`).
 
 ## Performance Notes
 
@@ -151,11 +166,16 @@ island. Keep the framework fast by following these rules:
 - `content-index.json` contains metadata, tags, directory data, short excerpts,
   and background text. Full article HTML is fetched only when a visitor opens a
   post or runs a full-content `grep`.
-- KaTeX CSS is local and loaded only on article pages, never on the homepage.
+- The custom content loader includes Markdown-rendering dependencies in its
+  cache digest, so changing remark/rehype plugins invalidates stale rendered HTML.
+- KaTeX CSS and fonts are local and loaded only on article pages, never on the homepage.
 - Mermaid is loaded on demand by the content viewer only when a post contains a
   Mermaid block.
+- Shiki code blocks use a fixed dark code palette so plaintext code remains
+  readable in both site themes.
 - The three-body background respects `prefers-reduced-motion`; low-power devices
-  use a lighter text/spotlight mode.
+  use a lighter text/spotlight mode, and background text reflows around the
+  terminal window without per-frame layout work.
 
 ### Asset Budget
 
