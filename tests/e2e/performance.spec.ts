@@ -97,6 +97,17 @@ test('article callouts use terminal labels without emoji', async ({ page }) => {
   await page.screenshot({ path: `${evidenceDir}/callout-terminal.png`, fullPage: true });
 });
 
+test('article page resolves Obsidian wiki links', async ({ page }) => {
+  const response = await page.goto(url('/blog/notebook/%E7%9F%A5%E8%AF%86%E5%BA%93%E5%9C%B0%E5%9B%BE/'));
+  expect(response?.ok()).toBeTruthy();
+
+  await expect(page.locator('.content-viewer')).toBeVisible();
+  await expect(page.locator('.content-viewer')).not.toContainText('[[梯度下降]]');
+
+  const link = page.locator('.content-viewer a', { hasText: '梯度下降' }).first();
+  await expect(link).toHaveAttribute('href', /\/blog\/notebook\/%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D\/?$/);
+});
+
 test('light theme keeps plaintext code blocks readable', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('theme', 'light'));
   const response = await page.goto(url('/blog/notebook/%E7%86%B5/'));

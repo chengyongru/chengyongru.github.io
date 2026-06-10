@@ -6,7 +6,6 @@ import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
-import remarkObsidianLinks from 'remark-obsidian-links';
 import rehypeKatex from 'rehype-katex';
 import { remarkMermaid } from './src/utils/remark-mermaid';
 import { remarkImagePath } from './src/utils/remark-image-path';
@@ -27,7 +26,6 @@ export default defineConfig({
   },
   markdown: {
     remarkPlugins: [
-      remarkObsidianLinks,
       remarkObsidian,
       remarkImagePath,
       remarkMermaid,

@@ -13,9 +13,9 @@ async function process(md: string): Promise<string> {
   return String(result);
 }
 
-async function processAst(md: string) {
+async function processAst(md: string, options?: Parameters<typeof remarkObsidian>[0]) {
   const tree = unified().use(remarkParse).parse(md);
-  await unified().use(remarkObsidian).run(tree);
+  await unified().use(remarkObsidian, options).run(tree);
   return tree as any;
 }
 
@@ -409,6 +409,65 @@ describe('link rewriting edge cases', () => {
     const link = tree.children[0]?.children?.[0] as any;
     // slugify decodes first, then lowercases
     expect(link.url).toBe('/blog/notebook/测试/');
+  });
+});
+
+// ===== Obsidian wiki link rewriting =====
+
+describe('wiki link rewriting', () => {
+  it('should rewrite bare wiki links through the content index map', async () => {
+    const tree = await processAst('See [[梯度下降]] now', {
+      wikiLinkMap: { '梯度下降': 'notebook/梯度下降' },
+    });
+    const children = tree.children[0]?.children as any[];
+    const link = children.find(child => child.type === 'link');
+    expect(link.url).toBe('/blog/notebook/梯度下降/');
+    expect(link.children[0].value).toBe('梯度下降');
+    expect(children.map(child => child.value || child.children?.[0]?.value).join('')).toContain('See 梯度下降 now');
+  });
+
+  it('should preserve alias text', async () => {
+    const tree = await processAst('[[LearningRate和BatchSize|学习率和批大小]]', {
+      wikiLinkMap: { 'LearningRate和BatchSize': 'notebook/learningrate和batchsize' },
+    });
+    const link = tree.children[0]?.children?.[0] as any;
+    expect(link.type).toBe('link');
+    expect(link.url).toBe('/blog/notebook/learningrate和batchsize/');
+    expect(link.children[0].value).toBe('学习率和批大小');
+  });
+
+  it('should handle heading-only wiki links', async () => {
+    const tree = await processAst('Jump [[#Section 2|there]]', { wikiLinkMap: {} });
+    const link = tree.children[0]?.children?.[1] as any;
+    expect(link.url).toBe('#section-2');
+    expect(link.children[0].value).toBe('there');
+  });
+
+  it('should keep multiple links in one text node', async () => {
+    const tree = await processAst('[[LSTM]] and [[Attention]]', {
+      wikiLinkMap: {
+        LSTM: 'notebook/lstm',
+        Attention: 'notebook/attention',
+      },
+    });
+    const links = tree.children[0]?.children?.filter((child: any) => child.type === 'link') as any[];
+    expect(links.map(link => link.url)).toEqual(['/blog/notebook/lstm/', '/blog/notebook/attention/']);
+  });
+
+  it('should rewrite wiki links outside paragraphs', async () => {
+    const tree = await processAst('## [[梯度下降]]', {
+      wikiLinkMap: { '梯度下降': 'notebook/梯度下降' },
+    });
+    const link = tree.children[0]?.children?.[0] as any;
+    expect(link.type).toBe('link');
+    expect(link.url).toBe('/blog/notebook/梯度下降/');
+  });
+
+  it('should rewrite real content bare links such as 知识库地图 references', async () => {
+    const tree = await processAst('[[梯度下降]]');
+    const link = tree.children[0]?.children?.[0] as any;
+    expect(link.type).toBe('link');
+    expect(link.url).toBe('/blog/notebook/梯度下降/');
   });
 });
 
