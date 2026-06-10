@@ -23,6 +23,6 @@ export async function GET(context) {
       link: `/blog/${post.id}/`,
       categories: post.data.tags,
     })),
-    customData: `<language>zh-CN</language>`,
+    customData: `<language>${config.site.lang}</language>`,
   });
 }

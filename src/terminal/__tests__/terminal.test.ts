@@ -291,6 +291,14 @@ describe('shouldFilterSlug', () => {
     expect(shouldFilterSlug('.claude/settings')).toBe(true);
     expect(shouldFilterSlug('img/photo')).toBe(true);
     expect(shouldFilterSlug('src/main')).toBe(true);
+    expect(shouldFilterSlug('projects/src/main')).toBe(true);
+    expect(shouldFilterSlug('projects/img/photo')).toBe(true);
+  });
+
+  it('filters dotfiles and dot-directories anywhere in the slug', () => {
+    expect(shouldFilterSlug('.wiki-schema')).toBe(true);
+    expect(shouldFilterSlug('notebook/.private')).toBe(true);
+    expect(shouldFilterSlug('projects/.drafts/post')).toBe(true);
   });
 
   it('does not filter normal slugs', () => {

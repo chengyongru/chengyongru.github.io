@@ -8,12 +8,16 @@ export const BLOCKED_DIRS = [
   'clippings', '_obsidian', '.obsidian', '.trash', '.claude', 'img', 'src',
 ] as const;
 
-/** Returns true if a slug should be hidden (claude file or blocked dir) */
+function isPrivatePathPart(part: string): boolean {
+  return part.startsWith('.');
+}
+
+/** Returns true if a slug should be hidden from generated routes and terminal output. */
 export function shouldFilterSlug(slug: string): boolean {
-  const parts = slug.split('/');
+  const parts = slug.split('/').filter(Boolean);
   const filename = parts[parts.length - 1]?.toLowerCase() || '';
-  if (filename === 'claude') return true;
-  const firstDir = parts[0]?.toLowerCase() || '';
-  if (BLOCKED_DIRS.includes(firstDir as any)) return true;
+  if (filename === 'claude' || isPrivatePathPart(filename)) return true;
+  if (parts.some(isPrivatePathPart)) return true;
+  if (parts.some(part => BLOCKED_DIRS.includes(part.toLowerCase() as any))) return true;
   return false;
 }

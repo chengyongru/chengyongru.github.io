@@ -19,7 +19,16 @@ export interface PostMeta {
   modify_date?: string;
   tags: string[];
   reading_time: number;
+  featured?: boolean;
+  featuredRank?: number;
+  excerpt?: string;
+  /** Backward-compatible legacy field; generated indexes should prefer excerpt. */
   text?: string;
+}
+
+export interface SearchResult {
+  post: PostMeta;
+  matchedIn: 'metadata' | 'excerpt' | 'content';
 }
 
 export interface PostContent {

@@ -13,6 +13,14 @@ export async function initBackground(): Promise<() => void> {
   if (window.innerWidth <= 768) return () => {};
   if (document.querySelector('.bg-stage')) return () => {};
 
+  const prefersReducedMotion = typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  const hardwareConcurrency = navigator.hardwareConcurrency || 8;
+  const lowPowerDevice = !prefersReducedMotion &&
+    (hardwareConcurrency <= 4 || (typeof deviceMemory === 'number' && deviceMemory <= 4));
+  const perfMode = prefersReducedMotion ? 'static' : lowPowerDevice ? 'lite' : 'full';
+
   const { prepareWithSegments, layoutNextLine } = await import('@chenglou/pretext');
 
   const FONT_SIZE = 14;
@@ -20,7 +28,7 @@ export async function initBackground(): Promise<() => void> {
   const GUTTER = 24;
   const PAD = 16;
   const MIN_SLOT_WIDTH = 60;
-  const MAX_CHARS = 8000;
+  const MAX_CHARS = perfMode === 'full' ? 8000 : perfMode === 'lite' ? 4200 : 2600;
 
   // --- Geometry helpers ---
 
@@ -158,6 +166,7 @@ export async function initBackground(): Promise<() => void> {
 
   const stage = document.createElement('div');
   stage.className = 'bg-stage';
+  stage.dataset.perfMode = perfMode;
   document.body.prepend(stage);
 
   let prepared: Awaited<ReturnType<typeof prepareWithSegments>> | null = null;
@@ -196,7 +205,7 @@ export async function initBackground(): Promise<() => void> {
   const MAX_OPACITY = 0.86;
   const OPACITY_BOOST = 0.76;
   const COLOR_THRESHOLD = 0.003;
-  const GRAD_SAMPLES = 22;
+  const GRAD_SAMPLES = perfMode === 'lite' ? 12 : 22;
 
   function updateLineColors() {
     if (!committed) return;
@@ -273,7 +282,7 @@ export async function initBackground(): Promise<() => void> {
 
   let lastCacheKey = '';
   let lastFrame = 0;
-  const DT = 33;
+  const DT = perfMode === 'lite' ? 66 : 33;
 
   function render(now: number) {
     rafId = requestAnimationFrame(render);
@@ -331,11 +340,23 @@ export async function initBackground(): Promise<() => void> {
     // Cleanup if we bail out
     themeObserver.disconnect();
     window.removeEventListener('resize', onResize);
+    stage.remove();
     return () => {};
   }
 
   await document.fonts.ready;
   prepared = prepareWithSegments(text, font);
+
+  const initialTermRect = termRef ? termRef.getBoundingClientRect() : null;
+  commitLines(layoutAllLines(prepared, W, H, initialTermRect));
+
+  if (perfMode === 'static') {
+    return () => {
+      themeObserver.disconnect();
+      window.removeEventListener('resize', onResize);
+      stage.remove();
+    };
+  }
 
   rafId = requestAnimationFrame(render);
 

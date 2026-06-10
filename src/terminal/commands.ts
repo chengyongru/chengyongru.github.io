@@ -9,6 +9,7 @@ import {
   getAllPosts,
   resolvePath,
   fetchPostContent,
+  searchPosts,
 } from './file-tree';
 import { parseCommandLine } from './command-line';
 import { THEMES, THEME_LABELS, normalizeTheme, type ThemeName } from './theme';
@@ -320,32 +321,27 @@ function cmdGREP(args: string[], ctx: CommandContext): void {
     return;
   }
 
-  const query = args.join(' ').toLowerCase();
-  const posts = getAllPosts();
+  const query = args.join(' ');
+  ctx.output(`<span style="color:var(--overlay)">Searching "${esc(query)}"...</span>`);
 
-  const results = posts.filter(p => {
-    if (p.title.toLowerCase().includes(query)) return true;
-    if (p.slug.toLowerCase().includes(query)) return true;
-    if (p.tags.some(t => t.toLowerCase().includes(query))) return true;
-    if (p.text && p.text.toLowerCase().includes(query)) return true;
-    return false;
+  searchPosts(query).then(results => {
+    if (results.length === 0) {
+      ctx.output(`<span style="color:var(--overlay)">No results for "${esc(query)}"</span>`);
+      return;
+    }
+
+    let output = `<div style="color:var(--teal);font-weight:bold;">Found ${results.length} result(s) for "${esc(query)}":</div>\n`;
+    for (const result of results.slice(0, 20)) {
+      const r = result.post;
+      output += `<div><span class="clickable-file" data-action="cat" data-slug="${r.slug}">${esc(r.title)}</span> <span style="color:var(--overlay)">${r.date ? r.date.split('T')[0] : ''}</span> <span style="color:var(--overlay);font-size:0.85em;">[${result.matchedIn}]</span></div>`;
+    }
+    if (results.length > 20) {
+      output += `<div style="color:var(--overlay)">...and ${results.length - 20} more</div>`;
+    }
+    ctx.output(output);
+  }).catch(() => {
+    ctx.output(`<span style="color:var(--red)">grep: search failed for "${esc(query)}"</span>`);
   });
-
-  if (results.length === 0) {
-    ctx.output(`<span style="color:var(--overlay)">No results for "${esc(query)}"</span>`);
-    return;
-  }
-
-  let output = `<div style="color:var(--teal);font-weight:bold;">Found ${results.length} result(s) for "${esc(query)}":</div>\n`;
-  for (const r of results.slice(0, 20)) {
-    // Show match context: which field matched
-    const matchedIn = r.text?.toLowerCase().includes(query) ? 'content' : 'metadata';
-    output += `<div><span class="clickable-file" data-action="cat" data-slug="${r.slug}">${esc(r.title)}</span> <span style="color:var(--overlay)">${r.date ? r.date.split('T')[0] : ''}</span> <span style="color:var(--overlay);font-size:0.85em;">[${matchedIn}]</span></div>`;
-  }
-  if (results.length > 20) {
-    output += `<div style="color:var(--overlay)">...and ${results.length - 20} more</div>`;
-  }
-  ctx.output(output);
 }
 
 // ---- tag ----

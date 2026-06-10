@@ -10,6 +10,7 @@ import { loadFileSystem, listDir, resolvePath, fetchPostContent, getAllPosts } f
 import { completeTerminalInput, type TabCycleState } from '../terminal/autocomplete';
 import { quoteCommandArg } from '../terminal/command-line';
 import { normalizeTheme } from '../terminal/theme';
+import { selectHomePosts } from '../terminal/home';
 import type { FileEntry, PostContent, PostMeta } from '../terminal/types';
 import config from '../config';
 
@@ -51,18 +52,7 @@ function renderCommand(label: string, cmd: string): string {
 }
 
 function renderBootLines(): string[] {
-  const posts = getAllPosts().filter(post => post.slug !== 'index');
-  const postsBySlug = new Map(posts.map(post => [post.slug.toLowerCase(), post]));
-  const configuredFeatured = config.home.featuredSlugs
-    .map(slug => postsBySlug.get(slug.toLowerCase()))
-    .filter((post): post is PostMeta => Boolean(post));
-  const featured = configuredFeatured.length > 0
-    ? configuredFeatured
-    : posts.slice(0, 3);
-  const featuredSlugs = new Set(featured.map(post => post.slug));
-  const recent = posts
-    .filter(post => !featuredSlugs.has(post.slug))
-    .slice(0, 4);
+  const { featured, recent } = selectHomePosts(getAllPosts(), config.home.featuredSlugs);
 
   const featuredHtml = featured.length > 0
     ? featured.map(renderPostRow).join('')

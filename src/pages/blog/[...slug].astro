@@ -24,6 +24,7 @@ const dateStr = post.data.date?.toISOString().split('T')[0] || '';
 
 <BaseLayout title={`${title} | ${config.site.title}`} description={description}>
   <Fragment slot="head">
+    <link rel="stylesheet" href="/vendor/katex/katex.min.css" />
     <link rel="canonical" href={canonicalURL} />
     <meta property="og:type" content="article" />
     <meta property="og:title" content={title} />
@@ -35,7 +36,7 @@ const dateStr = post.data.date?.toISOString().split('T')[0] || '';
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
   </Fragment>
-  <Terminal client:load />
+  <Terminal client:idle />
   <!-- Hidden article for SEO crawlers (rendered server-side) -->
   <article class="prose sr-only">
     <header class="post-header">

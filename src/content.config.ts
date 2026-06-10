@@ -1,12 +1,24 @@
 import { defineCollection } from 'astro:content';
-import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { safeContentGlob } from './utils/safe-content-loader';
+import { shouldFilterSlug } from './terminal/constants';
+
+const contentPatterns = [
+  '**/*.md',
+  '!**/.*.md',
+  '!**/.*/**',
+  '!**/_obsidian/**',
+  '!**/[Cc]lippings/**',
+  '!**/img/**',
+  '!**/src/**',
+];
 
 const blog = defineCollection({
-  loader: glob({
-    pattern: '{*.md,diary/*.md,notebook/*.md}',
+  loader: safeContentGlob({
+    pattern: contentPatterns,
     base: './content',
     generateId: ({ entry }) => entry.replace(/\.md$/i, '').toLowerCase(),
+    shouldSkipEntry: entry => shouldFilterSlug(entry.replace(/\.md$/i, '').toLowerCase()),
   }),
   schema: z.object({
     title: z.string().optional(),
@@ -16,6 +28,8 @@ const blog = defineCollection({
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
     mathjax: z.boolean().default(true),
+    featured: z.boolean().default(false),
+    featuredRank: z.coerce.number().optional(),
   }),
 });
 

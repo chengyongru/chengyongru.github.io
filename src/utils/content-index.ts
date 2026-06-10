@@ -20,8 +20,8 @@ const DIR_DESCS: Record<string, string> = config.dirs;
 function categorizePost(id: string): { dir: string; desc: string } {
   if (id === 'index') return { dir: '/', desc: '' };
 
-  // Extract directory from nested id (e.g., 'notebook/arima' → 'notebook/')
-  const slashIdx = id.indexOf('/');
+  // Extract directory from nested id (e.g., 'projects/research/note' → 'projects/research/')
+  const slashIdx = id.lastIndexOf('/');
   if (slashIdx > -1) {
     const dir = id.substring(0, slashIdx + 1);
     return { dir, desc: DIR_DESCS[dir] || '' };
@@ -35,6 +35,12 @@ function categorizePost(id: string): { dir: string; desc: string } {
     return { dir: diaryDir, desc: config.dirs[diaryDir] || '' };
   }
   return { dir: defaultDir, desc: config.dirs[defaultDir] || '' };
+}
+
+function getDirectoryChain(dir: string): string[] {
+  if (dir === '/') return [];
+  const parts = dir.replace(/\/$/, '').split('/').filter(Boolean);
+  return parts.map((_, index) => `${parts.slice(0, index + 1).join('/')}/`);
 }
 
 function extractPlainText(body: string): string {
@@ -59,6 +65,10 @@ function extractPlainText(body: string): string {
   return text.trim();
 }
 
+function makeExcerpt(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().slice(0, 240);
+}
+
 export async function generateContentIndex(posts: CollectionEntry<'blog'>[]): Promise<ContentIndex> {
   const allPosts: ContentIndex['posts'] = [];
   const directories: ContentIndex['directories'] = {};
@@ -71,9 +81,13 @@ export async function generateContentIndex(posts: CollectionEntry<'blog'>[]): Pr
     const body = (post as any).body || '';
 
     const { dir, desc } = categorizePost(id);
-    if (desc && !directories[dir]) {
-      directories[dir] = desc;
+    for (const currentDir of getDirectoryChain(dir)) {
+      if (!(currentDir in directories)) {
+        directories[currentDir] = DIR_DESCS[currentDir] || (currentDir === dir ? desc : '');
+      }
     }
+
+    const text = extractPlainText(body);
 
     const entry = {
       slug: id,
@@ -82,7 +96,9 @@ export async function generateContentIndex(posts: CollectionEntry<'blog'>[]): Pr
       modify_date: post.data.modify_date?.toISOString(),
       tags: post.data.tags || [],
       reading_time: estimateReadingTime(body),
-      text: extractPlainText(body),
+      featured: post.data.featured,
+      featuredRank: post.data.featuredRank,
+      excerpt: makeExcerpt(text),
     };
     allPosts.push(entry);
 
@@ -101,7 +117,7 @@ export async function generateContentIndex(posts: CollectionEntry<'blog'>[]): Pr
   const SNIPPET_LEN = 500;
   for (const post of allPosts) {
     if (bgLen >= BG_MAX) break;
-    let snippet = (post.text || '').replace(/\n+/g, ' ').slice(0, SNIPPET_LEN);
+    let snippet = (post.excerpt || '').replace(/\n+/g, ' ').slice(0, SNIPPET_LEN);
     // Strip LaTeX: $...$, $$...$$, \(\), \[\], and common commands
     snippet = snippet.replace(/\$\$[\s\S]*?\$\$/g, '');
     snippet = snippet.replace(/\$[^\$\n]+?\$/g, '');
@@ -127,19 +143,32 @@ export async function generateContentIndex(posts: CollectionEntry<'blog'>[]): Pr
 export function buildFileSystem(index: ContentIndex): Record<string, FileEntry[]> {
   const fs: Record<string, FileEntry[]> = {};
 
-  // Root directory
-  const rootEntries: FileEntry[] = [];
+  const ensureDir = (path: string) => {
+    if (!fs[path]) fs[path] = [];
+    return fs[path];
+  };
+
+  const addDirEntry = (dir: string, desc: string) => {
+    const normalizedDir = dir.endsWith('/') ? dir : `${dir}/`;
+    const trimmed = normalizedDir.replace(/\/$/, '');
+    const slashIdx = trimmed.lastIndexOf('/');
+    const parentPath = slashIdx === -1 ? '/' : `/${trimmed.substring(0, slashIdx + 1)}`;
+    const name = slashIdx === -1 ? normalizedDir : `${trimmed.substring(slashIdx + 1)}/`;
+    const parent = ensureDir(parentPath);
+    if (!parent.some(entry => entry.type === 'dir' && entry.name === name)) {
+      parent.push({ name, type: 'dir', desc });
+    }
+    ensureDir(`/${normalizedDir}`);
+  };
+
+  ensureDir('/');
   for (const [dir, desc] of Object.entries(index.directories)) {
-    rootEntries.push({
-      name: dir,
-      type: 'dir',
-      desc,
-    });
+    addDirEntry(dir, desc);
   }
   // index.md at root
   const indexPost = index.posts.find(p => p.slug === 'index');
   if (indexPost) {
-    rootEntries.push({
+    ensureDir('/').push({
       name: 'index.md',
       type: 'file',
       title: indexPost.title,
@@ -148,7 +177,6 @@ export function buildFileSystem(index: ContentIndex): Record<string, FileEntry[]
       slug: indexPost.slug,
     });
   }
-  fs['/'] = rootEntries;
 
   // Build per-directory file lists
   for (const post of index.posts) {
@@ -157,9 +185,7 @@ export function buildFileSystem(index: ContentIndex): Record<string, FileEntry[]
     const { dir } = categorizePost(post.slug);
     const dirPath = '/' + dir;
 
-    if (!fs[dirPath]) {
-      fs[dirPath] = [];
-    }
+    ensureDir(dirPath);
 
     // Extract filename from nested slug (e.g., 'notebook/arima' → 'arima.md')
     const fileName = post.slug.includes('/') ? post.slug.split('/').pop()! + '.md' : post.slug + '.md';

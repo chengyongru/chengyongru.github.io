@@ -38,6 +38,19 @@ vi.mock('../file-tree', () => ({
   getPostUrl: vi.fn((slug: string) => `/blog/${slug}/`),
   loadFileSystem: vi.fn(),
   fetchPostContent: vi.fn(),
+  searchPosts: vi.fn(async (rawQuery: string) => {
+    const query = rawQuery.toLowerCase();
+    return mockIndex.posts
+      .map(post => {
+        if (post.title.toLowerCase().includes(query)) return { post, matchedIn: 'metadata' };
+        if (post.slug.toLowerCase().includes(query)) return { post, matchedIn: 'metadata' };
+        if (post.tags.some(t => t.toLowerCase().includes(query))) return { post, matchedIn: 'metadata' };
+        if (post.excerpt?.toLowerCase().includes(query)) return { post, matchedIn: 'excerpt' };
+        if (post.text?.toLowerCase().includes(query)) return { post, matchedIn: 'content' };
+        return null;
+      })
+      .filter(Boolean);
+  }),
 }));
 
 // Mock fetch for commands that load content (cat, about)
@@ -289,29 +302,37 @@ describe('cmdLS', () => {
 describe('cmdGREP', () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it('should find posts by title', () => {
+  it('should find posts by title', async () => {
     const ctx = createMockCtx();
     executeCommand('grep ARIMA', ctx);
-    expect(getOutputText(ctx)).toContain('ARIMA Model');
-    expect(getOutputText(ctx)).toContain('Found');
+    await vi.waitFor(() => {
+      expect(getOutputText(ctx)).toContain('ARIMA Model');
+      expect(getOutputText(ctx)).toContain('Found');
+    });
   });
 
-  it('should find posts by tag', () => {
+  it('should find posts by tag', async () => {
     const ctx = createMockCtx();
     executeCommand('grep deep-learning', ctx);
-    expect(getOutputText(ctx)).toContain('Dropout Techniques');
+    await vi.waitFor(() => {
+      expect(getOutputText(ctx)).toContain('Dropout Techniques');
+    });
   });
 
-  it('should find posts by slug substring', () => {
+  it('should find posts by slug substring', async () => {
     const ctx = createMockCtx();
     executeCommand('grep KL', ctx);
-    expect(getOutputText(ctx)).toContain('KL Divergence');
+    await vi.waitFor(() => {
+      expect(getOutputText(ctx)).toContain('KL Divergence');
+    });
   });
 
-  it('should report no results for non-matching query', () => {
+  it('should report no results for non-matching query', async () => {
     const ctx = createMockCtx();
     executeCommand('grep xyznonexistent', ctx);
-    expect(getOutputText(ctx)).toContain('No results');
+    await vi.waitFor(() => {
+      expect(getOutputText(ctx)).toContain('No results');
+    });
   });
 
   it('should report error with no query', () => {
@@ -320,10 +341,12 @@ describe('cmdGREP', () => {
     expect(getOutputText(ctx)).toContain('missing query');
   });
 
-  it('should handle multi-word query', () => {
+  it('should handle multi-word query', async () => {
     const ctx = createMockCtx();
     executeCommand('grep Dropout Techniques', ctx);
-    expect(getOutputText(ctx)).toContain('Dropout Techniques');
+    await vi.waitFor(() => {
+      expect(getOutputText(ctx)).toContain('Dropout Techniques');
+    });
   });
 });
 
@@ -642,7 +665,7 @@ describe('cmdGREP additional branches', () => {
     vi.clearAllMocks();
   });
 
-  it('should show truncation when more than 20 results', () => {
+  it('should show truncation when more than 20 results', async () => {
     // Add many posts to mock index to exceed 20 results
     for (let i = 0; i < 25; i++) {
       mockIndex.posts.push({
@@ -656,13 +679,14 @@ describe('cmdGREP additional branches', () => {
     }
     const ctx = createMockCtx();
     executeCommand('grep common search term', ctx);
-    const output = getOutputText(ctx);
-    expect(output).toContain('more');
+    await vi.waitFor(() => {
+      expect(getOutputText(ctx)).toContain('more');
+    });
     // Clean up
     mockIndex.posts.splice(5, 25);
   });
 
-  it('should search full text when available', () => {
+  it('should search full text when available', async () => {
     // Add a post with text that doesn't match title/slug/tags
     mockIndex.posts.push({
       slug: 'notebook/hidden-gem',
@@ -674,9 +698,11 @@ describe('cmdGREP additional branches', () => {
     });
     const ctx = createMockCtx();
     executeCommand('grep pineapple', ctx);
-    const output = getOutputText(ctx);
-    expect(output).toContain('Hidden Gem');
-    expect(output).toContain('[content]');
+    await vi.waitFor(() => {
+      const output = getOutputText(ctx);
+      expect(output).toContain('Hidden Gem');
+      expect(output).toContain('[content]');
+    });
     mockIndex.posts.pop();
   });
 });

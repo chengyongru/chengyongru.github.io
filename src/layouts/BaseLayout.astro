@@ -10,14 +10,13 @@ const { title = config.site.title, description = config.site.description } = Ast
 ---
 
 <!doctype html>
-<html lang="zh-CN">
+<html lang={config.site.lang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
     <slot name="head" />
   </head>
   <body>

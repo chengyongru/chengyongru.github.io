@@ -40,6 +40,13 @@ describe('publication rules', () => {
     expect(isPublishablePost({ id: 'clippings/test', data: { tags: ['ML'] } }, rules)).toBe(false);
   });
 
+  it('rejects private dotfiles and dot-directories even with publishable tags', () => {
+    expect(isPublishablePost({ id: '.wiki-schema', data: { tags: ['docs'] } }, rules)).toBe(false);
+    expect(isPublishablePost({ id: 'notebook/.private', data: { tags: ['docs'] } }, rules)).toBe(false);
+    expect(isPublishablePost({ id: '.obsidian/plugins/config', data: { tags: ['docs'] } }, rules)).toBe(false);
+    expect(isPublishablePost({ id: 'projects/.drafts/post', data: { tags: ['docs'] } }, rules)).toBe(false);
+  });
+
   it('is safe to use as an Array.filter predicate', () => {
     const posts = [
       { id: 'notebook/public', data: { tags: ['ML'] } },

@@ -11,6 +11,7 @@ let resolvePath: typeof import('../file-tree').resolvePath;
 let getPostUrl: typeof import('../file-tree').getPostUrl;
 let loadFileSystem: typeof import('../file-tree').loadFileSystem;
 let fetchPostContent: typeof import('../file-tree').fetchPostContent;
+let searchPosts: typeof import('../file-tree').searchPosts;
 let categorizeDir: typeof import('../file-tree').categorizeDir;
 
 // Helper to reload the module fresh
@@ -24,6 +25,7 @@ async function reloadModule() {
   getPostUrl = mod.getPostUrl;
   loadFileSystem = mod.loadFileSystem;
   fetchPostContent = mod.fetchPostContent;
+  searchPosts = mod.searchPosts;
   categorizeDir = mod.categorizeDir;
 }
 
@@ -34,12 +36,13 @@ const mockIndex = {
   posts: [
     { slug: 'index', title: 'About', date: '2025-01-01', tags: ['about'], reading_time: 2 },
     { slug: 'notebook/ARIMA', title: 'ARIMA', date: '2025-10-01', tags: ['ML'], reading_time: 5 },
+    { slug: 'notebook/english/2_index', title: 'English Index', date: '2025-10-02', tags: ['english'], reading_time: 2 },
     { slug: 'diary/2025-10-11', title: 'Diary', date: '2025-10-11', tags: ['diary'], reading_time: 3 },
     { slug: 'notebook/claude', title: 'Claude', date: '2025-10-01', tags: [], reading_time: 1 },
     { slug: 'clippings/test', title: 'Clipping', date: '2025-10-01', tags: [], reading_time: 1 },
   ],
   tags: ['ML', 'diary', 'about'],
-  directories: { 'diary/': 'Journal', 'notebook/': 'Notes', 'clippings/': 'Clips' },
+  directories: { 'diary/': 'Journal', 'notebook/': 'Notes', 'notebook/english/': '', 'clippings/': 'Clips' },
 };
 
 function mockFetchIndex(indexData: object) {
@@ -57,6 +60,7 @@ describe('loadFileSystem', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('should load index and build file system', async () => {
@@ -113,6 +117,7 @@ describe('buildFS (via loadFileSystem)', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('root should contain directory entries and index.md', () => {
@@ -135,7 +140,13 @@ describe('buildFS (via loadFileSystem)', () => {
   it('notebook directory should contain files (excluding claude)', () => {
     const notebook = listDir('/notebook/')!;
     expect(notebook.some(f => f.name === 'ARIMA.md')).toBe(true);
+    expect(notebook.some(f => f.name === 'english/' && f.type === 'dir')).toBe(true);
     expect(notebook.some(f => f.slug === 'notebook/claude')).toBe(false);
+  });
+
+  it('nested directories should contain nested files', () => {
+    const english = listDir('/notebook/english/')!;
+    expect(english.some(f => f.name === '2_index.md' && f.slug === 'notebook/english/2_index')).toBe(true);
   });
 
   it('diary directory should contain diary entries', () => {
@@ -157,6 +168,7 @@ describe('listDir', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('should return undefined before loadFileSystem', async () => {
@@ -190,7 +202,7 @@ describe('getAllPosts', () => {
     await reloadModule();
     await loadFileSystem();
     const posts = getAllPosts();
-    expect(posts.length).toBe(5);
+    expect(posts.length).toBe(6);
   });
 });
 
@@ -220,6 +232,7 @@ describe('fetchPostContent', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('should extract article content from HTML page', async () => {
@@ -350,6 +363,67 @@ describe('fetchPostContent', () => {
   });
 });
 
+describe('searchPosts', () => {
+  beforeEach(async () => {
+    await reloadModule();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('matches metadata and excerpts without fetching article pages', async () => {
+    const fetchMock = mockFetchIndex({
+      ...mockIndex,
+      posts: [
+        { slug: 'notebook/fast', title: 'Fast Metadata', date: '2026-01-01', tags: ['perf'], reading_time: 1, excerpt: 'Short preview' },
+      ],
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await loadFileSystem();
+
+    const results = await searchPosts('perf');
+
+    expect(results).toHaveLength(1);
+    expect(results[0].matchedIn).toBe('metadata');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('fetches article HTML on demand for full-content grep matches', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url === '/content-index.json') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            posts: [
+              { slug: 'notebook/hidden', title: 'Hidden Note', date: '2026-01-01', tags: ['notes'], reading_time: 1, excerpt: 'Short preview' },
+            ],
+            tags: ['notes'],
+            directories: { 'notebook/': 'Notes' },
+          }),
+        });
+      }
+      if (url === '/blog/notebook/hidden/') {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve('<html><body><article><header class="post-header"><h1>Hidden Note</h1></header><p>deep pineapple marker</p></article></body></html>'),
+        });
+      }
+      return Promise.resolve({ ok: false, text: () => Promise.resolve('') });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await loadFileSystem();
+
+    const results = await searchPosts('pineapple');
+
+    expect(results).toHaveLength(1);
+    expect(results[0].post.slug).toBe('notebook/hidden');
+    expect(results[0].matchedIn).toBe('content');
+    expect(fetchMock).toHaveBeenCalledWith('/blog/notebook/hidden/');
+  });
+});
+
 describe('getPostUrl', () => {
   it('should generate correct URL', async () => {
     await reloadModule();
@@ -369,6 +443,10 @@ describe('categorizeDir', () => {
 
   it('should extract directory from nested slug', () => {
     expect(categorizeDir('notebook/test')).toBe('notebook/');
+  });
+
+  it('should preserve nested directory from deeply nested slug', () => {
+    expect(categorizeDir('notebook/english/2_index')).toBe('notebook/english/');
   });
 
   it('should categorize date-format slug as diary', () => {
