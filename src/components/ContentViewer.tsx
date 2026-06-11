@@ -512,12 +512,23 @@ export default function ContentViewer({ title, html, date, tags = [], readingTim
       <div class="content-viewer-panel">
         <div class="viewer-header">
           <div class="title-dots">
-            <span class="dot dot-red"></span>
+            <span
+              class="dot dot-red"
+              role="button"
+              tabIndex={0}
+              aria-label="Close viewer"
+              onClick={onClose}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onClose();
+                }
+              }}
+            ></span>
             <span class="dot dot-yellow"></span>
             <span class="dot dot-green"></span>
           </div>
           <span class="viewer-title">{title}</span>
-          <span class="viewer-close" onClick={onClose}>[q]</span>
         </div>
         <div
           class="viewer-body prose"

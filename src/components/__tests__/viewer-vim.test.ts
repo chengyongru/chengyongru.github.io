@@ -1,5 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { getLineHeight, highlightMatches, clearHighlights } from '../ContentViewer';
+import { h, render } from 'preact';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import ContentViewer, { getLineHeight, highlightMatches, clearHighlights } from '../ContentViewer';
+
+const renderRoots: HTMLElement[] = [];
+
+afterEach(() => {
+  for (const root of renderRoots) {
+    render(null, root);
+  }
+  renderRoots.length = 0;
+  document.body.innerHTML = '';
+  document.body.style.overflow = '';
+});
 
 describe('getLineHeight', () => {
   it('returns computed line-height in px', () => {
@@ -144,6 +156,28 @@ describe('clearHighlights', () => {
     container.innerHTML = '<p>Hello World</p>';
     clearHighlights(container);
     expect(container.innerHTML).toBe('<p>Hello World</p>');
+  });
+});
+
+describe('ContentViewer controls', () => {
+  it('closes from the red window control', () => {
+    const onClose = vi.fn();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    renderRoots.push(host);
+
+    render(h(ContentViewer, {
+      title: 'Test Post',
+      html: '<p>Hello</p>',
+      onClose,
+    }), host);
+
+    const closeButton = host.querySelector<HTMLElement>('.dot.dot-red');
+    expect(closeButton).not.toBeNull();
+
+    closeButton?.click();
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 

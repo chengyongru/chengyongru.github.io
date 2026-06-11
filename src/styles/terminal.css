@@ -275,20 +275,6 @@
   white-space: nowrap;
 }
 
-.viewer-close {
-  color: var(--subtext);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  transition: background 0.15s;
-  user-select: none;
-}
-.viewer-close:hover {
-  background: color-mix(in srgb, var(--surface1) 60%, transparent);
-  color: var(--text);
-}
-
 .viewer-body {
   flex: 1;
   overflow-y: auto;
@@ -455,11 +441,6 @@
   .clickable-file {
     padding: 4px 0;
     display: inline-block;
-  }
-
-  .viewer-close {
-    padding: 8px 12px;
-    font-size: 14px;
   }
 
   .viewer-hint {
