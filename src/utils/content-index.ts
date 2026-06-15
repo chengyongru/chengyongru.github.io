@@ -8,7 +8,7 @@ import type { ContentIndex, FileEntry } from '../terminal/types';
 import config from '../config';
 import { isPublishablePost } from './publication';
 
-function estimateReadingTime(text: string): number {
+export function estimateReadingTime(text: string): number {
   // Chinese: ~300 chars/min, English: ~200 words/min
   const chineseChars = (text.match(/[\u4e00-\u9fff]/g) || []).length;
   const englishWords = text.replace(/[\u4e00-\u9fff]/g, '').split(/\s+/).filter(Boolean).length;

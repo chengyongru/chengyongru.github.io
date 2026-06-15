@@ -24,7 +24,6 @@ const dateStr = post.data.date?.toISOString().split('T')[0] || '';
 
 <BaseLayout title={`${title} | ${config.site.title}`} description={description}>
   <Fragment slot="head">
-    <link rel="stylesheet" href="/vendor/katex/katex.min.css" />
     <link rel="canonical" href={canonicalURL} />
     <meta property="og:type" content="article" />
     <meta property="og:title" content={title} />

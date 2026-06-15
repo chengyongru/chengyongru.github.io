@@ -132,6 +132,11 @@ export function getPostUrl(slug: string): string {
   return `/blog/${encodedSlug}/`;
 }
 
+export function getPostContentUrl(slug: string): string {
+  const encodedSlug = slug.split('/').map(encodeURIComponent).join('/');
+  return `/post-content/${encodedSlug}.json`;
+}
+
 function normalizeSearchText(value: string): string {
   return value.toLowerCase();
 }
@@ -200,11 +205,45 @@ async function fetchPostText(slug: string): Promise<string> {
   return text;
 }
 
-/** Fetch a blog post's content by extracting the article from the rendered page */
+function normalizePostContent(value: unknown, slug: string): PostContent | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const payload = value as Partial<PostContent>;
+  if (typeof payload.html !== 'string' || !payload.html) return null;
+
+  const meta = index?.posts.find(p => p.slug.toLowerCase() === slug.toLowerCase());
+  return {
+    title: typeof payload.title === 'string' && payload.title ? payload.title : meta?.title || slug,
+    html: payload.html,
+    slug: typeof payload.slug === 'string' && payload.slug ? payload.slug : slug,
+    date: typeof payload.date === 'string' ? payload.date : meta?.date,
+    tags: Array.isArray(payload.tags) ? payload.tags : meta?.tags,
+    reading_time: typeof payload.reading_time === 'number' ? payload.reading_time : meta?.reading_time,
+  };
+}
+
+async function fetchPostContentPayload(slug: string): Promise<PostContent | null> {
+  const res = await fetch(getPostContentUrl(slug));
+  if (!res.ok) return null;
+  return normalizePostContent(await res.json(), slug);
+}
+
+/** Fetch a blog post's rendered HTML, preferring the content-only endpoint. */
 export async function fetchPostContent(slug: string): Promise<PostContent | null> {
   const cacheKey = slug.toLowerCase();
   if (postContentCache.has(cacheKey)) {
     return postContentCache.get(cacheKey) || null;
+  }
+
+  try {
+    const content = await fetchPostContentPayload(slug);
+    if (content) {
+      postContentCache.set(cacheKey, content);
+      postTextCache.set(cacheKey, htmlToText(content.html));
+      return content;
+    }
+  } catch {
+    // Fall back to the full page extraction path below.
   }
 
   const url = getPostUrl(slug);

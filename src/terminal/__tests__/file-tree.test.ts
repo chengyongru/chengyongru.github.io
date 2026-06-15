@@ -9,6 +9,7 @@ let getAllPosts: typeof import('../file-tree').getAllPosts;
 let getAllTags: typeof import('../file-tree').getAllTags;
 let resolvePath: typeof import('../file-tree').resolvePath;
 let getPostUrl: typeof import('../file-tree').getPostUrl;
+let getPostContentUrl: typeof import('../file-tree').getPostContentUrl;
 let loadFileSystem: typeof import('../file-tree').loadFileSystem;
 let fetchPostContent: typeof import('../file-tree').fetchPostContent;
 let searchPosts: typeof import('../file-tree').searchPosts;
@@ -23,6 +24,7 @@ async function reloadModule() {
   getAllTags = mod.getAllTags;
   resolvePath = mod.resolvePath;
   getPostUrl = mod.getPostUrl;
+  getPostContentUrl = mod.getPostContentUrl;
   loadFileSystem = mod.loadFileSystem;
   fetchPostContent = mod.fetchPostContent;
   searchPosts = mod.searchPosts;
@@ -235,7 +237,29 @@ describe('fetchPostContent', () => {
     vi.unstubAllGlobals();
   });
 
-  it('should extract article content from HTML page', async () => {
+  it('should load rendered content from the content endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        title: 'Endpoint Title',
+        html: '<p>Fast content</p>',
+        slug: 'notebook/ARIMA',
+        date: '2025-10-01',
+        tags: ['ML'],
+        reading_time: 5,
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await fetchPostContent('notebook/ARIMA');
+    expect(result).not.toBeNull();
+    expect(result!.title).toBe('Endpoint Title');
+    expect(result!.html).toContain('Fast content');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith('/post-content/notebook/ARIMA.json');
+  });
+
+  it('should extract article content from HTML page when the content endpoint is unavailable', async () => {
     const pageHtml = `
       <html><body>
         <article>
@@ -262,9 +286,14 @@ describe('fetchPostContent', () => {
       });
     });
     vi.stubGlobal('DOMParser', MockDOMParser);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      text: () => Promise.resolve(pageHtml),
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === '/post-content/notebook/ARIMA.json') {
+        return Promise.resolve({ ok: false, status: 404 });
+      }
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(pageHtml),
+      });
     }));
 
     const result = await fetchPostContent('notebook/ARIMA');
@@ -278,30 +307,17 @@ describe('fetchPostContent', () => {
   it('should fetch URL-encoded post paths', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve('<html><body><article><h1>Encoded</h1><p>Content</p></article></body></html>'),
+      json: () => Promise.resolve({
+        title: 'Encoded',
+        html: '<p>Content</p>',
+        slug: 'notebook/nanobot websocket channel 安全加固与工程化',
+      }),
     });
-    const MockDOMParser = vi.fn().mockImplementation(function(this: any) {
-      this.parseFromString = () => ({
-        querySelector: (sel: string) => {
-          if (sel === 'article') return {
-            querySelector: (s: string) => {
-              if (s === 'h1') return { textContent: 'Encoded' };
-              if (s === '.post-header') return null;
-              if (s === '.post-footer') return null;
-              return null;
-            },
-            innerHTML: '<p>Content</p>',
-          };
-          return null;
-        },
-      });
-    });
-    vi.stubGlobal('DOMParser', MockDOMParser);
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await fetchPostContent('notebook/nanobot websocket channel 安全加固与工程化');
     expect(result).not.toBeNull();
-    expect(fetchMock).toHaveBeenCalledWith('/blog/notebook/nanobot%20websocket%20channel%20%E5%AE%89%E5%85%A8%E5%8A%A0%E5%9B%BA%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%8C%96/');
+    expect(fetchMock).toHaveBeenCalledWith('/post-content/notebook/nanobot%20websocket%20channel%20%E5%AE%89%E5%85%A8%E5%8A%A0%E5%9B%BA%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%8C%96.json');
   });
 
   it('should return null on non-ok HTTP response', async () => {
@@ -404,13 +420,17 @@ describe('searchPosts', () => {
           }),
         });
       }
-      if (url === '/blog/notebook/hidden/') {
+      if (url === '/post-content/notebook/hidden.json') {
         return Promise.resolve({
           ok: true,
-          text: () => Promise.resolve('<html><body><article><header class="post-header"><h1>Hidden Note</h1></header><p>deep pineapple marker</p></article></body></html>'),
+          json: () => Promise.resolve({
+            title: 'Hidden Note',
+            html: '<p>deep pineapple marker</p>',
+            slug: 'notebook/hidden',
+          }),
         });
       }
-      return Promise.resolve({ ok: false, text: () => Promise.resolve('') });
+      return Promise.resolve({ ok: false, json: () => Promise.resolve(null), text: () => Promise.resolve('') });
     });
     vi.stubGlobal('fetch', fetchMock);
     await loadFileSystem();
@@ -420,7 +440,7 @@ describe('searchPosts', () => {
     expect(results).toHaveLength(1);
     expect(results[0].post.slug).toBe('notebook/hidden');
     expect(results[0].matchedIn).toBe('content');
-    expect(fetchMock).toHaveBeenCalledWith('/blog/notebook/hidden/');
+    expect(fetchMock).toHaveBeenCalledWith('/post-content/notebook/hidden.json');
   });
 });
 
@@ -433,6 +453,18 @@ describe('getPostUrl', () => {
   it('should encode slug path segments', async () => {
     await reloadModule();
     expect(getPostUrl('notebook/nanobot websocket channel 安全加固与工程化')).toBe('/blog/notebook/nanobot%20websocket%20channel%20%E5%AE%89%E5%85%A8%E5%8A%A0%E5%9B%BA%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%8C%96/');
+  });
+});
+
+describe('getPostContentUrl', () => {
+  it('should generate correct content endpoint URL', async () => {
+    await reloadModule();
+    expect(getPostContentUrl('notebook/arima')).toBe('/post-content/notebook/arima.json');
+  });
+
+  it('should encode slug path segments', async () => {
+    await reloadModule();
+    expect(getPostContentUrl('notebook/nanobot websocket channel 安全加固与工程化')).toBe('/post-content/notebook/nanobot%20websocket%20channel%20%E5%AE%89%E5%85%A8%E5%8A%A0%E5%9B%BA%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%8C%96.json');
   });
 });
 

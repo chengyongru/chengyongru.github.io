@@ -32,7 +32,7 @@ export default defineConfig({
       remarkMath,
       remarkGfm,
     ],
-    rehypePlugins: [rehypeKatex],
+    rehypePlugins: [[rehypeKatex, { output: 'html' }]],
     shikiConfig: {
       theme: 'github-dark',
     },
