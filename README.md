@@ -120,6 +120,7 @@ date: 2026-06-16
 created: 2026-06-16
 modify_date: 2026-06-16
 tags: [ml, security]
+publish: true
 draft: false
 mathjax: true
 featured: false
@@ -135,6 +136,7 @@ featuredRank: 10
 | `date` | 发布日期，影响排序和 RSS |
 | `created` / `modify_date` | 可选元数据 |
 | `tags` | 标签；当前默认发布规则要求至少有一个 tag |
+| `publish` | 开启 frontmatter 发布开关后，只有布尔值 `true` 才允许发布 |
 | `draft` | `true` 时永远不公开 |
 | `mathjax` | 保留兼容字段；模板默认启用 KaTeX 渲染 |
 | `featured` | 是否进入首页 Featured 候选 |
@@ -148,10 +150,11 @@ featuredRank: 10
 
 第一层是路径过滤，会跳过 dot path、`_obsidian`、`.obsidian`、`.trash`、`.claude`、`Clippings`、`img`、`src` 等不适合公开发布的路径。
 
-第二层是 `src/config.ts` 的 tag 规则：
+第二层是 `src/config.ts` 的 frontmatter 和 tag 规则：
 
 ```ts
 publish: {
+  requirePublishFlag: true,
   requireTags: true,
   blockedTags: ['todo', 'english'],
   alwaysPublishSlugs: ['index'],
@@ -160,12 +163,26 @@ publish: {
 
 默认含义：
 
+- `requirePublishFlag: true` 开启严格白名单，只有 `publish: true` 的笔记才会继续参与发布判断。
 - 除 `index` 外，笔记必须有 tag 才发布。
 - 带 `todo` 或 `english` tag 的笔记不会发布。
 - `alwaysPublishSlugs` 可让特定 slug 绕过 tag 要求。
 - `draft: true` 和私有路径过滤始终优先，不会被绕过。
 
+当前配置只发布明确批准的文档。请在需要公开的 Markdown 中加入：
+
+```yaml
+---
+publish: true
+---
+```
+
+严格模式下，缺少 `publish`、写成 `publish: false`，或写成字符串 `"true"` 都不会发布；必须使用 YAML 布尔值 `true`。`alwaysPublishSlugs` 只能绕过 tag 规则，不能绕过这个 frontmatter 开关。
+
+如果需要恢复旧行为，把 `requirePublishFlag` 改为 `false`；此时 `publish` 字段会被忽略，其他路径、草稿和 tag 规则仍然生效。
+
 这些规则会同时影响 `/blog/...` 页面、`content-index.json`、终端列表、搜索、标签、最近文章和 RSS。
+生产构建还会清理 `dist/img`，只复制已发布页面实际引用的 `content/img` 附件；未发布笔记使用的图片和 PDF 不会进入部署产物。
 
 ## 首页 Featured
 

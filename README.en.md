@@ -120,6 +120,7 @@ date: 2026-06-16
 created: 2026-06-16
 modify_date: 2026-06-16
 tags: [ml, security]
+publish: true
 draft: false
 mathjax: true
 featured: false
@@ -135,6 +136,7 @@ Field reference:
 | `date` | Published date, used for sorting and RSS |
 | `created` / `modify_date` | Optional metadata |
 | `tags` | Tags. The default publishing rules require at least one tag |
+| `publish` | When the frontmatter publishing gate is enabled, only boolean `true` allows publishing |
 | `draft` | `true` keeps the post private |
 | `mathjax` | Compatibility field. KaTeX rendering is enabled by default |
 | `featured` | Adds the post to homepage Featured candidates |
@@ -148,10 +150,11 @@ Public content is filtered in two layers.
 
 The first layer filters paths. Dot paths, `_obsidian`, `.obsidian`, `.trash`, `.claude`, `Clippings`, `img`, `src`, and similar private or non-post paths are skipped.
 
-The second layer uses tag rules from `src/config.ts`:
+The second layer uses frontmatter and tag rules from `src/config.ts`:
 
 ```ts
 publish: {
+  requirePublishFlag: true,
   requireTags: true,
   blockedTags: ['todo', 'english'],
   alwaysPublishSlugs: ['index'],
@@ -160,12 +163,26 @@ publish: {
 
 Default behavior:
 
+- `requirePublishFlag: true` enables the strict allowlist, so only notes with `publish: true` continue through the publishing rules.
 - Notes other than `index` must have at least one tag.
 - Notes tagged `todo` or `english` are not published.
 - `alwaysPublishSlugs` can bypass the tag requirement for specific slugs.
 - `draft: true` and private path filters always win.
 
+The current configuration publishes only explicitly approved documents. Add this to every Markdown file that should be public:
+
+```yaml
+---
+publish: true
+---
+```
+
+In strict mode, a missing `publish` field, `publish: false`, or the string `"true"` will not publish the note. It must be the YAML boolean `true`. `alwaysPublishSlugs` can bypass tag rules, but it cannot bypass this frontmatter gate.
+
+To restore the previous behavior, set `requirePublishFlag` to `false`. The `publish` field is then ignored, while path, draft, and tag rules remain active.
+
 These rules apply to `/blog/...` pages, `content-index.json`, terminal listings, search, tags, recent posts, and RSS.
+Production builds also clean `dist/img` and copy only `content/img` assets referenced by published pages. Images and PDFs used only by unpublished notes are excluded from deployment.
 
 ## Homepage Featured Posts
 

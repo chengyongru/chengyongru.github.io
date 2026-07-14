@@ -7,6 +7,7 @@ import {
 } from '../publication';
 
 const rules: PublishConfig = {
+  requirePublishFlag: false,
   requireTags: true,
   blockedTags: ['todo'],
   alwaysPublishSlugs: ['index'],
@@ -31,6 +32,25 @@ describe('publication rules', () => {
     expect(isPublishableByTags(['ML'], rules)).toBe(true);
   });
 
+  it('requires an explicit publish: true when the frontmatter gate is enabled', () => {
+    const strictRules = { ...rules, requirePublishFlag: true };
+
+    expect(isPublishablePost({ id: 'notebook/missing', data: { tags: ['ML'] } }, strictRules)).toBe(false);
+    expect(isPublishablePost({ id: 'notebook/disabled', data: { publish: false, tags: ['ML'] } }, strictRules)).toBe(false);
+    expect(isPublishablePost({ id: 'notebook/public', data: { publish: true, tags: ['ML'] } }, strictRules)).toBe(true);
+  });
+
+  it('ignores the publish field when the frontmatter gate is disabled', () => {
+    expect(isPublishablePost({ id: 'notebook/legacy', data: { publish: false, tags: ['ML'] } }, rules)).toBe(true);
+  });
+
+  it('does not let always-published slugs bypass the frontmatter gate', () => {
+    const strictRules = { ...rules, requirePublishFlag: true };
+
+    expect(isPublishablePost({ id: 'index', data: { tags: [] } }, strictRules)).toBe(false);
+    expect(isPublishablePost({ id: 'index', data: { publish: true, tags: [] } }, strictRules)).toBe(true);
+  });
+
   it('keeps configured slugs public even when they have no tags', () => {
     expect(isPublishablePost({ id: 'index', data: { tags: [] } }, rules)).toBe(true);
   });
@@ -49,8 +69,8 @@ describe('publication rules', () => {
 
   it('is safe to use as an Array.filter predicate', () => {
     const posts = [
-      { id: 'notebook/public', data: { tags: ['ML'] } },
-      { id: 'notebook/private', data: { tags: ['todo'] } },
+      { id: 'notebook/public', data: { publish: true, tags: ['ML'] } },
+      { id: 'notebook/private', data: { publish: true, tags: ['todo'] } },
     ];
 
     expect(posts.filter(isPublishablePost).map(post => post.id)).toEqual(['notebook/public']);

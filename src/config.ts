@@ -47,11 +47,13 @@ export interface RssConfig {
 }
 
 export interface PublishConfig {
+  /** Require frontmatter `publish: true` before a note can be publicly generated. */
+  requirePublishFlag: boolean;
   /** Require at least one tag before a note is publicly generated. */
   requireTags: boolean;
   /** Any note with one of these tags is kept out of the public site. */
   blockedTags: string[];
-  /** Slugs that bypass tag-based filtering, while still respecting draft/path filters. */
+  /** Slugs that bypass tag-based filtering, while still respecting publish/draft/path filters. */
   alwaysPublishSlugs: string[];
 }
 
@@ -109,6 +111,7 @@ const config: Config = {
   },
 
   publish: {
+    requirePublishFlag: true,
     requireTags: true,
     blockedTags: ['todo', 'english'],
     alwaysPublishSlugs: ['index'],

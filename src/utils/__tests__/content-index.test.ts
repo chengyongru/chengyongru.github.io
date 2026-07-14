@@ -7,6 +7,7 @@ describe('generateContentIndex', () => {
       {
         id: 'notebook/featured-note',
         data: {
+          publish: true,
           title: 'Featured Note',
           date: new Date('2026-01-01T00:00:00.000Z'),
           tags: ['docs'],
@@ -34,6 +35,7 @@ describe('generateContentIndex', () => {
       {
         id: 'notebook/long-note',
         data: {
+          publish: true,
           title: 'Long Note',
           date: new Date('2026-01-03T00:00:00.000Z'),
           tags: ['perf'],
@@ -55,6 +57,7 @@ describe('generateContentIndex', () => {
       {
         id: 'projects/research/deep-note',
         data: {
+          publish: true,
           title: 'Deep Note',
           date: new Date('2026-01-02T00:00:00.000Z'),
           tags: ['docs'],

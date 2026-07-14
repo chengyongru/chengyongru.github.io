@@ -10,9 +10,32 @@ import rehypeKatex from 'rehype-katex';
 import { remarkMermaid } from './src/utils/remark-mermaid';
 import { remarkImagePath } from './src/utils/remark-image-path';
 import { remarkObsidian } from './src/utils/remark-obsidian';
+import { syncPublishedAssets } from './src/utils/published-assets';
 import { default as siteConfig } from './src/config';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function publishedContentAssets() {
+  return {
+    name: 'published-content-assets',
+    hooks: {
+      'astro:build:done': async ({ dir, logger }) => {
+        const result = await syncPublishedAssets(
+          fileURLToPath(dir),
+          path.resolve(__dirname, 'content/img'),
+        );
+        if (result.missing.length > 0) {
+          throw new Error(
+            `Published content references missing or unsafe assets: ${result.missing.join(', ')}`,
+          );
+        }
+        logger.info(
+          `Copied ${result.copied} referenced content asset(s); unreferenced assets were excluded.`,
+        );
+      },
+    },
+  };
+}
 
 export default defineConfig({
   site: siteConfig.site.url,
@@ -20,6 +43,7 @@ export default defineConfig({
   integrations: [
     preact(),
     sitemap(),
+    publishedContentAssets(),
   ],
   image: {
     service: passthroughImageService(),

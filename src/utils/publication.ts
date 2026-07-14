@@ -4,6 +4,7 @@ import { shouldFilterSlug } from '../terminal/constants';
 interface PostForPublication {
   id: string;
   data: {
+    publish?: boolean;
     draft?: boolean;
     tags?: readonly string[] | null;
   };
@@ -19,6 +20,7 @@ function resolveRules(rules: PublishConfig | unknown): PublishConfig {
     typeof rules === 'object' &&
     Array.isArray((rules as PublishConfig).blockedTags) &&
     Array.isArray((rules as PublishConfig).alwaysPublishSlugs) &&
+    typeof (rules as PublishConfig).requirePublishFlag === 'boolean' &&
     typeof (rules as PublishConfig).requireTags === 'boolean'
   ) {
     return rules as PublishConfig;
@@ -59,6 +61,7 @@ export function isPublishablePost(
   const activeRules = resolveRules(rules);
   if (post.data.draft) return false;
   if (shouldFilterSlug(post.id)) return false;
+  if (activeRules.requirePublishFlag && post.data.publish !== true) return false;
   if (isAlwaysPublishedSlug(post.id, activeRules)) return true;
   return isPublishableByTags(post.data.tags, activeRules);
 }
