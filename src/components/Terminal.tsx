@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
-import ContentViewer, { getLineHeight } from './ContentViewer';
+import ContentViewer from './ContentViewer';
 import { executeCommand, getPrompt, getAllCommands } from '../terminal/commands';
 import { loadFileSystem, listDir, resolvePath, fetchPostContent, getAllPosts } from '../terminal/file-tree';
 import { completeTerminalInput, type TabCycleState } from '../terminal/autocomplete';
@@ -20,7 +20,13 @@ interface OutputLine {
   isInput?: boolean;
 }
 
-type ViewerState = PostContent;
+interface ViewerWindowState {
+  id: number;
+  post: PostContent;
+  initialPosition: { x: number; y: number };
+  initialSize: { w: number; h: number };
+  zIndex: number;
+}
 
 function esc(str: string): string {
   return str
@@ -97,6 +103,35 @@ const MIN_W = 480;
 const MIN_H = 360;
 const DEFAULT_WIN = { w: 960, h: 600 };
 const MAX_LINES = 500;
+const WINDOW_Z_BASE = 10;
+
+function getViewerGeometry(sequence: number) {
+  const gutter = window.innerWidth <= 768 ? 0 : 20;
+  const width = Math.min(900, Math.max(520, window.innerWidth - 120));
+  const height = Math.min(800, Math.max(420, window.innerHeight - 96));
+  const offset = (sequence % 6) * 24;
+  const centeredX = Math.round((window.innerWidth - width) / 2);
+  const centeredY = Math.round((window.innerHeight - height) / 2);
+
+  return {
+    position: {
+      x: Math.min(Math.max(gutter, centeredX + 56 + offset), Math.max(gutter, window.innerWidth - width - gutter)),
+      y: Math.min(Math.max(gutter, centeredY + 28 + offset), Math.max(gutter, window.innerHeight - height - gutter)),
+    },
+    size: { w: width, h: height },
+  };
+}
+
+function syncBrowserLocation(post: PostContent | null, mode: 'push' | 'replace' = 'push') {
+  const state = post ? { slug: post.slug, title: post.title } : null;
+  const url = post ? `/blog/${post.slug}/` : '/';
+  document.title = post ? `${post.title} | ${config.site.title}` : config.site.title;
+  if (mode === 'replace') {
+    window.history.replaceState(state, '', url);
+  } else if (window.location.pathname !== url) {
+    window.history.pushState(state, '', url);
+  }
+}
 
 export default function Terminal() {
   const [cwd, setCwd] = useState('/');
@@ -106,7 +141,7 @@ export default function Terminal() {
     try { return JSON.parse(localStorage.getItem('cmd-history') || '[]'); } catch { return []; }
   });
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [viewer, setViewer] = useState<ViewerState | null>(null);
+  const [viewerWindows, setViewerWindows] = useState<ViewerWindowState[]>([]);
   const [ready, setReady] = useState(false);
   const [tabCycle, setTabCycle] = useState<TabCycleState | null>(null);
 
@@ -114,6 +149,7 @@ export default function Terminal() {
   const [winPos, setWinPos] = useState({ x: 0, y: 0 });
   const [winSize, setWinSize] = useState({ ...DEFAULT_WIN });
   const [maximized, setMaximized] = useState(false);
+  const [mainZIndex, setMainZIndex] = useState(WINDOW_Z_BASE);
 
   const bodyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -130,7 +166,21 @@ export default function Terminal() {
     dir: string;
   } | null>(null);
   const preMaxRef = useRef({ pos: { x: 0, y: 0 }, size: { ...DEFAULT_WIN } });
-  const viewerGBufferRef = useRef<number | null>(null);
+  const viewerWindowsRef = useRef<ViewerWindowState[]>([]);
+  const nextViewerIdRef = useRef(1);
+  const zCounterRef = useRef(WINDOW_Z_BASE);
+
+  const createViewerWindow = useCallback((post: PostContent): ViewerWindowState => {
+    const id = nextViewerIdRef.current++;
+    const geometry = getViewerGeometry(id - 1);
+    return {
+      id,
+      post,
+      initialPosition: geometry.position,
+      initialSize: geometry.size,
+      zIndex: ++zCounterRef.current,
+    };
+  }, []);
 
   // Center window on mount
   useEffect(() => {
@@ -190,10 +240,10 @@ export default function Terminal() {
       if (initialSlug) {
         fetchPostContent(initialSlug).then(result => {
           if (result) {
-            setViewer(result);
-            document.title = `${result.title} | ${config.site.title}`;
-            // Use replaceState since this is restoring, not a new navigation
-            window.history.replaceState({ slug: initialSlug, title: result.title }, '', `/blog/${initialSlug}/`);
+            const viewerWindow = createViewerWindow(result);
+            viewerWindowsRef.current = [viewerWindow];
+            setViewerWindows([viewerWindow]);
+            syncBrowserLocation(result, 'replace');
           } else {
             // Invalid slug, redirect to home
             window.history.replaceState(null, '', '/');
@@ -201,7 +251,7 @@ export default function Terminal() {
         });
       }
     });
-  }, []);
+  }, [createViewerWindow]);
 
   // Drag & resize — batch pointer input to one visual update per frame.
   useEffect(() => {
@@ -348,20 +398,30 @@ export default function Terminal() {
         const slug = decodeURIComponent(m[1]);
         fetchPostContent(slug).then(result => {
           if (result) {
-            setViewer(result);
+            const existing = viewerWindowsRef.current.find(viewer => viewer.post.slug === slug);
+            let next: ViewerWindowState[];
+            if (existing) {
+              const zIndex = ++zCounterRef.current;
+              next = viewerWindowsRef.current.map(viewer => viewer.id === existing.id ? { ...viewer, zIndex } : viewer);
+            } else {
+              next = [...viewerWindowsRef.current, createViewerWindow(result)];
+            }
+            viewerWindowsRef.current = next;
+            setViewerWindows(next);
             document.title = `${result.title} | ${config.site.title}`;
           }
         });
       } else {
-        // Back to home — close viewer
-        setViewer(null);
+        // Back to home — close article windows
+        viewerWindowsRef.current = [];
+        setViewerWindows([]);
         document.title = config.site.title;
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [createViewerWindow]);
 
   // --- Window management handlers ---
 
@@ -427,54 +487,68 @@ export default function Terminal() {
   }, [cwd]);
 
   const openViewer = useCallback((post: PostContent) => {
-    inputRef.current?.blur();
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-    setViewer(post);
-    // Sync URL to browser history
-    const { slug, title } = post;
-    const url = `/blog/${slug}/`;
-    document.title = `${title} | ${config.site.title}`;
-    if (window.location.pathname !== url) {
-      window.history.pushState({ slug, title }, '', url);
-    }
+    const viewerWindow = createViewerWindow(post);
+    const next = [...viewerWindowsRef.current, viewerWindow];
+    viewerWindowsRef.current = next;
+    setViewerWindows(next);
+    syncBrowserLocation(post);
+  }, [createViewerWindow]);
+
+  const activateViewer = useCallback((id: number) => {
+    const current = viewerWindowsRef.current.find(viewer => viewer.id === id);
+    if (!current) return;
+    const zIndex = ++zCounterRef.current;
+    const next = viewerWindowsRef.current.map(viewer => viewer.id === id ? { ...viewer, zIndex } : viewer);
+    viewerWindowsRef.current = next;
+    setViewerWindows(next);
+    syncBrowserLocation(current.post, 'replace');
   }, []);
 
-  const closeViewer = useCallback(() => {
-    setViewer(null);
-    // Restore URL to home
-    document.title = config.site.title;
-    if (window.location.pathname !== '/') {
-      window.history.pushState(null, '', '/');
-    }
-    requestAnimationFrame(() => inputRef.current?.focus());
+  const activateMainWindow = useCallback(() => {
+    setMainZIndex(++zCounterRef.current);
   }, []);
 
-  const handleViewerNavigate = useCallback((href: string) => {
-    // Extract slug from /blog/{slug}/ or /blog/{slug}#hash
-    const m = href.match(/^\/blog\/(.+?)(?:\/#|#|\/$|$)/);
-    if (!m) {
+  const closeViewer = useCallback((id: number) => {
+    const next = viewerWindowsRef.current.filter(viewer => viewer.id !== id);
+    viewerWindowsRef.current = next;
+    setViewerWindows(next);
+    const topViewer = next.reduce<ViewerWindowState | null>(
+      (top, viewer) => !top || viewer.zIndex > top.zIndex ? viewer : top,
+      null,
+    );
+    syncBrowserLocation(topViewer?.post ?? null);
+    if (!topViewer) requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
+  const handleViewerNavigate = useCallback((id: number, href: string) => {
+    const parsed = new URL(href, window.location.origin);
+    const match = parsed.pathname.match(/^\/blog\/(.+?)\/?$/);
+    if (!match) {
       window.location.href = href;
       return;
     }
-    const slug = decodeURIComponent(m[1]);
-    const hash = href.includes('#') ? decodeURIComponent(href.split('#')[1]) : null;
+    const slug = decodeURIComponent(match[1]);
+    const hash = parsed.hash ? decodeURIComponent(parsed.hash.slice(1)) : null;
     fetchPostContent(slug).then(result => {
-      if (result) {
-        openViewer(result);
-        // Scroll to anchor after content renders
-        if (hash) {
-          requestAnimationFrame(() => {
-            const target = document.querySelector(`#${CSS.escape(hash)}`);
-            target?.scrollIntoView({ behavior: 'smooth' });
-          });
-        }
-      } else {
+      if (!result) {
         window.location.href = href;
+        return;
+      }
+      const zIndex = ++zCounterRef.current;
+      const next = viewerWindowsRef.current.map(viewer => viewer.id === id
+        ? { ...viewer, post: result, zIndex }
+        : viewer);
+      viewerWindowsRef.current = next;
+      setViewerWindows(next);
+      syncBrowserLocation(result);
+      if (hash) {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const viewer = document.querySelector<HTMLElement>(`.content-viewer[data-viewer-id="${id}"]`);
+          viewer?.querySelector<HTMLElement>(`#${CSS.escape(hash)}`)?.scrollIntoView({ behavior: 'smooth' });
+        }));
       }
     });
-  }, [openViewer]);
+  }, []);
 
   const handleClear = useCallback(() => {
     setLines([]);
@@ -610,151 +684,92 @@ export default function Terminal() {
     }
   }, [input, history, historyIndex, handleCommand, cwd, tabCycle]);
 
-  useEffect(() => {
-    if (!viewer) return;
-
-    const handleGlobalViewerKeys = (e: KeyboardEvent) => {
-      const target = e.target instanceof HTMLElement ? e.target : null;
-      if (target?.closest('.vim-search-input')) return;
-
-      const viewerBody = document.querySelector<HTMLElement>('.viewer-body');
-      if (!viewerBody) return;
-      const eventKey = typeof e.key === 'string' ? e.key : '';
-      const noCommandModifier = !e.ctrlKey && !e.altKey && !e.metaKey;
-      const isPlainKey = (key: string, code: string) =>
-        noCommandModifier && !e.shiftKey && (
-          eventKey.toLowerCase() === key ||
-          e.code === code
-        );
-      const isShiftKey = (key: string, code: string) =>
-        noCommandModifier && e.shiftKey && (
-          eventKey === key ||
-          e.code === code
-        );
-
-      const consume = () => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      };
-
-      if (e.key === 'd' && e.ctrlKey) {
-        consume();
-        const lineHeight = getLineHeight(viewerBody);
-        viewerBody.scrollTop += (viewerBody.clientHeight - lineHeight * 2) * 0.5;
-        return;
-      }
-
-      if (e.key === 'u' && e.ctrlKey) {
-        consume();
-        const lineHeight = getLineHeight(viewerBody);
-        viewerBody.scrollTop -= (viewerBody.clientHeight - lineHeight * 2) * 0.5;
-        return;
-      }
-
-      if (isShiftKey('G', 'KeyG')) {
-        consume();
-        viewerBody.scrollTop = viewerBody.scrollHeight;
-        return;
-      }
-
-      if (isPlainKey('g', 'KeyG')) {
-        consume();
-        const now = Date.now();
-        if (viewerGBufferRef.current && now - viewerGBufferRef.current < 500) {
-          viewerBody.scrollTop = 0;
-          viewerGBufferRef.current = null;
-        } else {
-          viewerGBufferRef.current = now;
-        }
-        return;
-      }
-
-      if (eventKey === 'Escape' || isPlainKey('q', 'KeyQ')) {
-        consume();
-        closeViewer();
-      }
-    };
-
-    window.addEventListener('keydown', handleGlobalViewerKeys, { capture: true });
-    document.addEventListener('keydown', handleGlobalViewerKeys, { capture: true });
-    return () => {
-      window.removeEventListener('keydown', handleGlobalViewerKeys, { capture: true });
-      document.removeEventListener('keydown', handleGlobalViewerKeys, { capture: true });
-      viewerGBufferRef.current = null;
-    };
-  }, [viewer, closeViewer]);
-
   const resizeDirs = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
+  const topViewer = viewerWindows.reduce<ViewerWindowState | null>(
+    (top, viewer) => !top || viewer.zIndex > top.zIndex ? viewer : top,
+    null,
+  );
 
   return (
-    <div
-      ref={winRef}
-      class={`terminal-window${maximized ? ' maximized' : ''}`}
-      style={!maximized ? { left: `${winPos.x}px`, top: `${winPos.y}px`, width: `${winSize.w}px`, height: `${winSize.h}px` } : undefined}
-    >
-      <div class="title-bar" onMouseDown={onTitleMouseDown} onDblClick={toggleMaximize}>
-        <div class="title-dots">
-          <span class="dot dot-red" />
-          <span class="dot dot-yellow" />
-          <span class="dot dot-green" onClick={(e) => { e.stopPropagation(); toggleMaximize(); }} />
+    <>
+      <div
+        ref={winRef}
+        class={`terminal-window${maximized ? ' maximized' : ''}`}
+        style={!maximized
+          ? { left: `${winPos.x}px`, top: `${winPos.y}px`, width: `${winSize.w}px`, height: `${winSize.h}px`, zIndex: mainZIndex }
+          : { zIndex: mainZIndex }}
+        onMouseDown={activateMainWindow}
+      >
+        <div class="title-bar" onMouseDown={onTitleMouseDown} onDblClick={toggleMaximize}>
+          <div class="title-dots">
+            <span class="dot dot-red" />
+            <span class="dot dot-yellow" />
+            <span class="dot dot-green" onClick={(e) => { e.stopPropagation(); toggleMaximize(); }} />
+          </div>
+          <span class="title-text">visitor@{config.terminal.hostname}:~</span>
         </div>
-        <span class="title-text">visitor@{config.terminal.hostname}:~</span>
-      </div>
-      <div class="terminal-body" ref={bodyRef}>
-        {lines.map((line, i) => (
-          <div
-            key={i}
-            class="terminal-line"
-            dangerouslySetInnerHTML={{ __html: line.html }}
-            onClick={line.isInput ? undefined : handleOutputClick}
-          />
-        ))}
-        {tabCycle && tabCycle.matches.length > 0 && (
-          <div class="terminal-line" style="color:var(--overlay)">
-            {tabCycle.matches.map((m, i) => {
-              const desc = tabCycle.descs?.[m];
-              return (
-                <span key={i} style={i === tabCycle.idx ? 'color:var(--text);text-decoration:underline' : ''}>
-                  {m}{desc ? <span style="color:var(--subtext);font-size:0.85em"> ({desc})</span> : null}{'  '}
-                </span>
-              );
-            })}
-          </div>
-        )}
-        {ready && !viewer && (
-          <div class="input-line">
-            <span class="terminal-prompt">{getPrompt(cwd)}</span>
-            <input
-              ref={inputRef}
-              class="input-field"
-              type="text"
-              value={input}
-              onInput={(e) => { setInput((e.target as HTMLInputElement).value); setTabCycle(null); }}
-              onKeyDown={handleKeyDown}
-              autoFocus
-              spellcheck={false}
-              autocomplete="off"
-              autocapitalize="off"
+        <div class="terminal-body" ref={bodyRef}>
+          {lines.map((line, i) => (
+            <div
+              key={i}
+              class="terminal-line"
+              dangerouslySetInnerHTML={{ __html: line.html }}
+              onClick={line.isInput ? undefined : handleOutputClick}
             />
-          </div>
-        )}
+          ))}
+          {tabCycle && tabCycle.matches.length > 0 && (
+            <div class="terminal-line" style="color:var(--overlay)">
+              {tabCycle.matches.map((m, i) => {
+                const desc = tabCycle.descs?.[m];
+                return (
+                  <span key={i} style={i === tabCycle.idx ? 'color:var(--text);text-decoration:underline' : ''}>
+                    {m}{desc ? <span style="color:var(--subtext);font-size:0.85em"> ({desc})</span> : null}{'  '}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {ready && (
+            <div class="input-line">
+              <span class="terminal-prompt">{getPrompt(cwd)}</span>
+              <input
+                ref={inputRef}
+                class="input-field"
+                type="text"
+                value={input}
+                onInput={(e) => { setInput((e.target as HTMLInputElement).value); setTabCycle(null); }}
+                onKeyDown={handleKeyDown}
+                autoFocus
+                spellcheck={false}
+                autocomplete="off"
+                autocapitalize="off"
+              />
+            </div>
+          )}
+        </div>
+        {!maximized && resizeDirs.map(dir => (
+          <span key={dir} class={`resize-handle rh-${dir}`} onMouseDown={onResizeStart(dir)} />
+        ))}
       </div>
-      {viewer && (
+      {viewerWindows.map(viewer => (
         <ContentViewer
-          title={viewer.title}
-          html={viewer.html}
-          date={viewer.date}
-          tags={viewer.tags}
-          readingTime={viewer.reading_time}
-          slug={viewer.slug}
-          onClose={closeViewer}
-          onNavigate={handleViewerNavigate}
+          key={viewer.id}
+          windowId={viewer.id}
+          title={viewer.post.title}
+          html={viewer.post.html}
+          date={viewer.post.date}
+          tags={viewer.post.tags}
+          readingTime={viewer.post.reading_time}
+          slug={viewer.post.slug}
+          initialPosition={viewer.initialPosition}
+          initialSize={viewer.initialSize}
+          zIndex={viewer.zIndex}
+          active={viewer.id === topViewer?.id && viewer.zIndex > mainZIndex}
+          onActivate={() => activateViewer(viewer.id)}
+          onClose={() => closeViewer(viewer.id)}
+          onNavigate={(href) => handleViewerNavigate(viewer.id, href)}
         />
-      )}
-      {!maximized && resizeDirs.map(dir => (
-        <span key={dir} class={`resize-handle rh-${dir}`} onMouseDown={onResizeStart(dir)} />
       ))}
-    </div>
+    </>
   );
 }

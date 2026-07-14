@@ -160,6 +160,32 @@ describe('clearHighlights', () => {
 });
 
 describe('ContentViewer controls', () => {
+  it('renders as an independent positioned terminal window', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    renderRoots.push(host);
+
+    render(h(ContentViewer, {
+      title: 'Test Post',
+      html: '<p>Hello</p>',
+      windowId: 7,
+      initialPosition: { x: 120, y: 80 },
+      initialSize: { w: 720, h: 540 },
+      zIndex: 42,
+      onClose: vi.fn(),
+    }), host);
+
+    const viewer = host.querySelector<HTMLElement>('.content-viewer');
+    expect(viewer?.dataset.viewerId).toBe('7');
+    expect(viewer?.style.left).toBe('120px');
+    expect(viewer?.style.top).toBe('80px');
+    expect(viewer?.style.width).toBe('720px');
+    expect(viewer?.style.height).toBe('540px');
+    expect(viewer?.style.zIndex).toBe('42');
+    expect(host.querySelector('.viewer-title')?.textContent).toBe('cat · Test Post');
+    expect(document.body.style.overflow).toBe('');
+  });
+
   it('closes from the red window control', () => {
     const onClose = vi.fn();
     const host = document.createElement('div');

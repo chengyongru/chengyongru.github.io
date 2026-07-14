@@ -1,5 +1,5 @@
 // ============================================================
-// Content Viewer - Overlay panel for reading blog posts
+// Content Viewer - Independent terminal window for reading blog posts
 // Supports vim-style keybindings: Ctrl+d/u/G/gg// /n/N
 // ============================================================
 
@@ -14,6 +14,21 @@ interface Props {
   slug?: string;
   onClose: () => void;
   onNavigate?: (url: string) => void;
+  windowId?: number;
+  initialPosition?: { x: number; y: number };
+  initialSize?: { w: number; h: number };
+  zIndex?: number;
+  active?: boolean;
+  onActivate?: () => void;
+}
+
+const MIN_VIEWER_W = 420;
+const MIN_VIEWER_H = 320;
+const VIEWPORT_GUTTER = 8;
+const resizeDirs = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max));
 }
 
 let mermaidIdCounter = 0;
@@ -102,10 +117,40 @@ function formatDate(date?: string): string {
   return date ? date.split('T')[0] : '';
 }
 
-export default function ContentViewer({ title, html, date, tags = [], readingTime, slug, onClose, onNavigate }: Props) {
+export default function ContentViewer({
+  title,
+  html,
+  date,
+  tags = [],
+  readingTime,
+  slug,
+  onClose,
+  onNavigate,
+  windowId = 0,
+  initialPosition = { x: 40, y: 40 },
+  initialSize = { w: 860, h: 720 },
+  zIndex = 20,
+  active = true,
+  onActivate,
+}: Props) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [position, setPosition] = useState(initialPosition);
+  const [size, setSize] = useState(initialSize);
+  const [maximized, setMaximized] = useState(false);
+  const preMaxRef = useRef({ position: initialPosition, size: initialSize });
+  const dragRef = useRef<{
+    sx: number; sy: number;
+    x: number; y: number;
+    w: number; h: number;
+  } | null>(null);
+  const resizeRef = useRef<{
+    sx: number; sy: number;
+    x: number; y: number;
+    w: number; h: number;
+    dir: string;
+  } | null>(null);
 
   // Search state
   const [searchOpen, setSearchOpen] = useState(false);
@@ -134,6 +179,146 @@ export default function ContentViewer({ title, html, date, tags = [], readingTim
     requestAnimationFrame(focus);
     setTimeout(focus, 0);
   }, []);
+
+  // Batch drag and resize input to one DOM update per animation frame, then
+  // commit state once when the pointer is released.
+  useEffect(() => {
+    let moveRaf = 0;
+    let pendingPoint: { x: number; y: number } | null = null;
+    let pendingGeometry: { x: number; y: number; w: number; h: number } | null = null;
+
+    const applyPendingMove = () => {
+      moveRaf = 0;
+      const point = pendingPoint;
+      const el = viewerRef.current;
+      pendingPoint = null;
+      if (!point || !el) return;
+
+      if (dragRef.current) {
+        const drag = dragRef.current;
+        const x = clamp(
+          drag.x + point.x - drag.sx,
+          VIEWPORT_GUTTER,
+          window.innerWidth - drag.w - VIEWPORT_GUTTER,
+        );
+        const y = clamp(
+          drag.y + point.y - drag.sy,
+          VIEWPORT_GUTTER,
+          window.innerHeight - drag.h - VIEWPORT_GUTTER,
+        );
+        pendingGeometry = { x, y, w: drag.w, h: drag.h };
+      } else if (resizeRef.current) {
+        const resize = resizeRef.current;
+        const dx = point.x - resize.sx;
+        const dy = point.y - resize.sy;
+        let { x, y, w, h } = resize;
+
+        if (resize.dir.includes('e')) w = Math.max(MIN_VIEWER_W, resize.w + dx);
+        if (resize.dir.includes('s')) h = Math.max(MIN_VIEWER_H, resize.h + dy);
+        if (resize.dir.includes('w')) {
+          w = Math.max(MIN_VIEWER_W, resize.w - dx);
+          x = resize.x + resize.w - w;
+        }
+        if (resize.dir.includes('n')) {
+          h = Math.max(MIN_VIEWER_H, resize.h - dy);
+          y = resize.y + resize.h - h;
+        }
+
+        x = Math.max(VIEWPORT_GUTTER, x);
+        y = Math.max(VIEWPORT_GUTTER, y);
+        w = Math.min(w, window.innerWidth - x - VIEWPORT_GUTTER);
+        h = Math.min(h, window.innerHeight - y - VIEWPORT_GUTTER);
+        pendingGeometry = { x, y, w, h };
+      }
+
+      if (!pendingGeometry) return;
+      el.style.left = `${pendingGeometry.x}px`;
+      el.style.top = `${pendingGeometry.y}px`;
+      el.style.width = `${pendingGeometry.w}px`;
+      el.style.height = `${pendingGeometry.h}px`;
+    };
+
+    const onMove = (event: MouseEvent) => {
+      if (!dragRef.current && !resizeRef.current) return;
+      pendingPoint = { x: event.clientX, y: event.clientY };
+      if (moveRaf === 0) moveRaf = requestAnimationFrame(applyPendingMove);
+    };
+
+    const onUp = () => {
+      if (!dragRef.current && !resizeRef.current) return;
+      if (moveRaf !== 0) {
+        cancelAnimationFrame(moveRaf);
+        applyPendingMove();
+      }
+      if (pendingGeometry) {
+        setPosition({ x: pendingGeometry.x, y: pendingGeometry.y });
+        setSize({ w: pendingGeometry.w, h: pendingGeometry.h });
+      }
+      dragRef.current = null;
+      resizeRef.current = null;
+      pendingGeometry = null;
+      viewerRef.current?.classList.remove('is-interacting');
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      if (moveRaf !== 0) cancelAnimationFrame(moveRaf);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const keepInsideViewport = () => {
+      if (maximized) return;
+      const w = Math.min(size.w, Math.max(MIN_VIEWER_W, window.innerWidth - VIEWPORT_GUTTER * 2));
+      const h = Math.min(size.h, Math.max(MIN_VIEWER_H, window.innerHeight - VIEWPORT_GUTTER * 2));
+      setSize({ w, h });
+      setPosition(current => ({
+        x: clamp(current.x, VIEWPORT_GUTTER, window.innerWidth - w - VIEWPORT_GUTTER),
+        y: clamp(current.y, VIEWPORT_GUTTER, window.innerHeight - h - VIEWPORT_GUTTER),
+      }));
+    };
+    window.addEventListener('resize', keepInsideViewport);
+    return () => window.removeEventListener('resize', keepInsideViewport);
+  }, [maximized, size.w, size.h]);
+
+  const onHeaderMouseDown = useCallback((event: MouseEvent) => {
+    if (maximized || (event.target as HTMLElement).closest('.title-dots')) return;
+    event.preventDefault();
+    viewerRef.current?.classList.add('is-interacting');
+    dragRef.current = {
+      sx: event.clientX, sy: event.clientY,
+      x: position.x, y: position.y,
+      w: size.w, h: size.h,
+    };
+  }, [maximized, position.x, position.y, size.w, size.h]);
+
+  const onResizeStart = useCallback((dir: string) => (event: MouseEvent) => {
+    if (maximized) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onActivate?.();
+    viewerRef.current?.classList.add('is-interacting');
+    resizeRef.current = {
+      sx: event.clientX, sy: event.clientY,
+      x: position.x, y: position.y,
+      w: size.w, h: size.h,
+      dir,
+    };
+  }, [maximized, onActivate, position.x, position.y, size.w, size.h]);
+
+  const toggleMaximize = useCallback(() => {
+    if (maximized) {
+      setPosition(preMaxRef.current.position);
+      setSize(preMaxRef.current.size);
+      setMaximized(false);
+    } else {
+      preMaxRef.current = { position: { ...position }, size: { ...size } };
+      setMaximized(true);
+    }
+  }, [maximized, position, size]);
 
   const scrollToMatch = useCallback((direction: 'next' | 'prev') => {
     const matches = matchElementsRef.current;
@@ -362,22 +547,10 @@ export default function ContentViewer({ title, html, date, tags = [], readingTim
     }
   }, [onClose, searchOpen, closeSearch, commitSearch, scrollToMatch, openSearch]);
 
+  // Only the active window owns vim-style keyboard shortcuts.
   useLayoutEffect(() => {
-    window.addEventListener('keydown', handleViewerKeyDown, { capture: true });
-    document.addEventListener('keydown', handleViewerKeyDown, { capture: true });
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', handleViewerKeyDown, { capture: true });
-      document.removeEventListener('keydown', handleViewerKeyDown, { capture: true });
-      document.body.style.overflow = '';
-      document.querySelector<HTMLInputElement>('.input-field')?.focus();
-    };
-  }, [handleViewerKeyDown]);
-
-  // Focus viewer body on mount so keyboard events dispatch
-  useLayoutEffect(() => {
-    focusViewerBody();
-  }, [focusViewerBody]);
+    if (active) focusViewerBody();
+  }, [active, focusViewerBody]);
 
   // Scroll to top when content changes
   useLayoutEffect(() => {
@@ -500,24 +673,35 @@ export default function ContentViewer({ title, html, date, tags = [], readingTim
 
   return (
     <div
-      class="content-viewer"
+      class={`content-viewer article-window${active ? ' is-active' : ''}${maximized ? ' maximized' : ''}`}
       ref={viewerRef}
       tabIndex={-1}
+      data-viewer-id={windowId}
+      style={!maximized ? {
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        width: `${size.w}px`,
+        height: `${size.h}px`,
+        zIndex,
+      } : { zIndex }}
       onKeyDownCapture={handleViewerKeyDown}
-      onClick={(e) => {
+      onMouseDown={() => onActivate?.()}
+      onClick={() => {
         focusViewerBody();
-        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div class="content-viewer-panel">
-        <div class="viewer-header">
+        <div class="viewer-header" onMouseDown={onHeaderMouseDown} onDblClick={toggleMaximize}>
           <div class="title-dots">
             <span
               class="dot dot-red"
               role="button"
               tabIndex={0}
               aria-label="Close viewer"
-              onClick={onClose}
+              onClick={(event) => {
+                event.stopPropagation();
+                onClose();
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
@@ -525,10 +709,26 @@ export default function ContentViewer({ title, html, date, tags = [], readingTim
                 }
               }}
             ></span>
-            <span class="dot dot-yellow"></span>
-            <span class="dot dot-green"></span>
+            <span class="dot dot-yellow" aria-hidden="true"></span>
+            <span
+              class="dot dot-green"
+              role="button"
+              tabIndex={0}
+              aria-label={maximized ? 'Restore viewer' : 'Maximize viewer'}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleMaximize();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onActivate?.();
+                  toggleMaximize();
+                }
+              }}
+            ></span>
           </div>
-          <span class="viewer-title">{title}</span>
+          <span class="viewer-title"><span>cat</span><span class="viewer-title-separator"> · </span>{title}</span>
         </div>
         <div
           class="viewer-body prose"
@@ -574,6 +774,9 @@ export default function ContentViewer({ title, html, date, tags = [], readingTim
           <kbd>q</kbd> close
         </div>
       </div>
+      {!maximized && resizeDirs.map(dir => (
+        <span key={dir} class={`resize-handle rh-${dir}`} onMouseDown={onResizeStart(dir)} />
+      ))}
     </div>
   );
 }
