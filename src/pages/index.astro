@@ -10,5 +10,7 @@ import config from '../config';
 
 <script>
 import { initBackground } from '../components/Background';
-window._bgCleanup = await initBackground();
+const backgroundWindow = window as Window & { _bgCleanup?: () => void };
+backgroundWindow._bgCleanup?.();
+backgroundWindow._bgCleanup = await initBackground();
 </script>

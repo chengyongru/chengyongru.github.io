@@ -23,6 +23,11 @@
   box-shadow: none;
 }
 
+.terminal-window.is-interacting {
+  transition: none;
+  will-change: transform, width, height;
+}
+
 /* ===== Title Bar ===== */
 .title-bar {
   display: flex;

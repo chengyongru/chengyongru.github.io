@@ -1,444 +1,746 @@
 // ============================================================
-// Background - Text flowing around the terminal window
-// Uses @chenglou/pretext for text layout. Pure DOM, no framework.
-// Optimized: only re-layouts when terminal position changes.
-// Three-body spotlight: three stable moving light centers tint text
-// with blue/mauve/green via per-pixel CSS gradients.
-// Colors only appear on text, never on the background.
+// Background - Pretext layout rendered through one canvas.
+// Pretext handles multilingual line breaking; canvas keeps terminal
+// avoidance and the three-body spotlight off the DOM hot path.
 // ============================================================
 
-interface SpotBody { x: number; y: number }
+import {
+  TERMINAL_GEOMETRY_EVENT,
+  type TerminalGeometry,
+} from "../terminal/geometry";
+
+interface SpotBody {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}
+
+interface PositionedLine {
+  x: number;
+  y: number;
+  text: string;
+}
+
+type RGB = [number, number, number];
 
 export async function initBackground(): Promise<() => void> {
   if (window.innerWidth <= 768) return () => {};
-  if (document.querySelector('.bg-stage')) return () => {};
-
-  const prefersReducedMotion = typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
-  const hardwareConcurrency = navigator.hardwareConcurrency || 8;
-  const lowPowerDevice = !prefersReducedMotion &&
-    (hardwareConcurrency <= 4 || (typeof deviceMemory === 'number' && deviceMemory <= 4));
-  const perfMode = prefersReducedMotion ? 'static' : lowPowerDevice ? 'lite' : 'full';
-
-  const { prepareWithSegments, layoutNextLine } = await import('@chenglou/pretext');
+  if (document.querySelector(".bg-stage")) return () => {};
 
   const FONT_SIZE = 14;
   const LINE_HEIGHT = 26;
+  const TEXT_TOP_OFFSET = 3;
   const GUTTER = 24;
-  const PAD = 16;
+  const PAD = 18;
+  const WRAP_CORNER_RADIUS = 200;
+  const CUTOUT_FEATHER = 20;
   const MIN_SLOT_WIDTH = 60;
-  const MAX_CHARS = perfMode === 'full' ? 8000 : perfMode === 'lite' ? 4200 : 2600;
-
-  // --- Geometry helpers ---
-
-  function rectIntervalForBand(rect: DOMRect, bandTop: number, bandBottom: number): { left: number; right: number } | null {
-    if (bandBottom <= rect.top - PAD || bandTop >= rect.bottom + PAD) return null;
-    return { left: rect.left - PAD, right: rect.right + PAD };
-  }
-
-  function carveSlots(base: { left: number; right: number }, blocked: ({ left: number; right: number } | null)[]) {
-    let slots = [base];
-    for (const iv of blocked) {
-      if (!iv) continue;
-      const next = [];
-      for (const slot of slots) {
-        if (iv.right <= slot.left || iv.left >= slot.right) { next.push(slot); continue; }
-        if (iv.left > slot.left) next.push({ left: slot.left, right: iv.left });
-        if (iv.right < slot.right) next.push({ left: iv.right, right: slot.right });
-      }
-      slots = next;
-    }
-    return slots.filter(s => s.right - s.left >= MIN_SLOT_WIDTH);
-  }
-
-  function layoutAllLines(prepared: Awaited<ReturnType<typeof prepareWithSegments>>, W: number, H: number, termRect: DOMRect | null) {
-    const baseCol = { left: GUTTER, right: W - GUTTER };
-    const allLines = [];
-    let cursor = { segmentIndex: 0, graphemeIndex: 0 };
-    let lineTop = GUTTER;
-
-    while (lineTop + LINE_HEIGHT <= H - GUTTER / 2) {
-      const blocked = [];
-      if (termRect) {
-        const iv = rectIntervalForBand(termRect, lineTop, lineTop + LINE_HEIGHT);
-        if (iv) blocked.push(iv);
-      }
-      const slots = carveSlots(baseCol, blocked);
-      if (slots.length === 0) { lineTop += LINE_HEIGHT; continue; }
-      for (const slot of slots) {
-        let line = layoutNextLine(prepared, cursor, slot.right - slot.left);
-        if (line === null) {
-          cursor = { segmentIndex: 0, graphemeIndex: 0 };
-          line = layoutNextLine(prepared, cursor, slot.right - slot.left);
-          if (line === null) break;
-        }
-        allLines.push({ x: Math.round(slot.left), y: Math.round(lineTop), text: line.text });
-        cursor = line.end;
-      }
-      lineTop += LINE_HEIGHT;
-    }
-    return allLines;
-  }
-
-  // --- Three-body spotlight choreography ---
-
-  const VARS = ['--blue', '--mauve', '--green'] as const;
-
-  function hexRGB(hex: string): [number, number, number] {
-    return [
-      parseInt(hex.slice(1, 3), 16),
-      parseInt(hex.slice(3, 5), 16),
-      parseInt(hex.slice(5, 7), 16),
-    ];
-  }
-
-  function readColors(): [number, number, number][] {
-    const cs = getComputedStyle(document.documentElement);
-    return VARS.map(v => {
-      const h = cs.getPropertyValue(v).trim();
-      return h ? hexRGB(h) : ([137, 180, 250] as [number, number, number]);
-    });
-  }
-
-  let spotColors = readColors();
-  const themeObserver = new MutationObserver(() => { spotColors = readColors(); });
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-
-  let W = window.innerWidth;
-  let H = window.innerHeight;
-  let cx = W / 2, cy = H / 2;
-  const TAU = Math.PI * 2;
-
-  const bodies: SpotBody[] = [0, 1, 2].map(() => ({ x: cx, y: cy }));
-
-  let termRef: HTMLElement | null = null;
-  let cachedTermRect: DOMRect | null = null;
-  let cachedTermKey = 'none';
-  let geometryDirty = true;
-  let lastRectCheck = 0;
-  let trackTermUntil = performance.now() + 1500;
-
-  function getTerminalElement(): HTMLElement | null {
-    if (!termRef || !termRef.isConnected) {
-      termRef = document.querySelector<HTMLElement>('.terminal-window');
-    }
-    return termRef;
-  }
-
-  function getTerminalRect(): DOMRect | null {
-    const el = getTerminalElement();
-    if (!el) return null;
-    const rect = el.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0 ? rect : null;
-  }
-
-  function rectKey(rect: DOMRect | null): string {
-    return rect
-      ? `${Math.round(rect.left)},${Math.round(rect.top)},${Math.round(rect.width)},${Math.round(rect.height)}`
-      : 'none';
-  }
-
-  async function waitForStableTerminalRect(): Promise<DOMRect | null> {
-    let previous = '';
-    let stableFrames = 0;
-
-    for (let i = 0; i < 12; i++) {
-      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-      const rect = getTerminalRect();
-      const key = rectKey(rect);
-      stableFrames = key === previous && rect ? stableFrames + 1 : 0;
-      previous = key;
-      if (stableFrames >= 2) return rect;
-    }
-
-    return getTerminalRect();
-  }
-
-  function refreshTerminalRect(force = false, now = performance.now()): DOMRect | null {
-    if (!force && now - lastRectCheck < 240) return cachedTermRect;
-    lastRectCheck = now;
-
-    const rect = getTerminalRect();
-    const key = rectKey(rect);
-    if (key !== cachedTermKey) {
-      cachedTermRect = rect;
-      cachedTermKey = key;
-      geometryDirty = true;
-    }
-    return cachedTermRect;
-  }
-
-  function clamp(n: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, n));
-  }
-
-  function bendAroundTerminal(body: SpotBody, termRect: DOMRect | null): SpotBody {
-    if (!termRect) return body;
-
-    const pad = 80;
-    const left = termRect.left - pad;
-    const right = termRect.right + pad;
-    const top = termRect.top - pad;
-    const bottom = termRect.bottom + pad;
-    if (body.x < left || body.x > right || body.y < top || body.y > bottom) {
-      return body;
-    }
-
-    const dl = body.x - left;
-    const dr = right - body.x;
-    const dt = body.y - top;
-    const db = bottom - body.y;
-    const minD = Math.min(dl, dr, dt, db);
-
-    if (minD === dl) return { x: left, y: body.y };
-    if (minD === dr) return { x: right, y: body.y };
-    if (minD === dt) return { x: body.x, y: top };
-    return { x: body.x, y: bottom };
-  }
-
-  function stepBodies(now: number, termRect: DOMRect | null) {
-    const t = now * 0.00018;
-    const radiusX = clamp(W * 0.34, 260, 620);
-    const radiusY = clamp(H * 0.36, 190, 360);
-    const braid = clamp(Math.min(W, H) * 0.12, 80, 150);
-    const margin = 36;
-
-    for (let i = 0; i < 3; i++) {
-      const phase = t + i * TAU / 3;
-      const body = {
-        x: cx + Math.sin(phase) * radiusX + Math.sin(phase * 2.0 + i * 0.7) * braid,
-        y: cy + Math.sin(phase) * Math.cos(phase) * radiusY + Math.cos(phase * 1.5 + i * 1.2) * braid * 0.55,
-      };
-      const bent = bendAroundTerminal(body, termRect);
-      bodies[i].x = clamp(bent.x, margin, W - margin);
-      bodies[i].y = clamp(bent.y, margin, H - margin);
-    }
-  }
-
-  // --- DOM setup ---
-
-  const stage = document.createElement('div');
-  stage.className = 'bg-stage';
-  stage.dataset.perfMode = perfMode;
-  document.body.prepend(stage);
-
-  let prepared: Awaited<ReturnType<typeof prepareWithSegments>> | null = null;
-  let linePool: HTMLSpanElement[] = [];
-  let committed: { x: number; y: number; text: string }[] | null = null;
-  let rafId = 0;
-
+  const MAX_CHARS = 8000;
+  const SPOTLIGHT_FPS = 30;
+  const SPOTLIGHT_FRAME_MS = 1000 / SPOTLIGHT_FPS;
+  const REDUCED_MOTION_FPS = 20;
+  const REDUCED_MOTION_FRAME_MS = 1000 / REDUCED_MOTION_FPS;
+  const REDUCED_MOTION_SCALE = 0.55;
+  const MOTION_SPEED_MULTIPLIER = 2;
+  const INTERACTIVE_LAYOUT_MS = 50;
+  const MAX_RENDER_SCALE = 1.25;
+  const BASE_OPACITY = 0.11;
+  const SPOT_COLOR_STRENGTH = 0.58;
   const font = `${FONT_SIZE}px "JetBrains Mono", monospace`;
 
-  function syncPool(count: number) {
-    while (linePool.length < count) {
-      const el = document.createElement('span');
-      el.className = 'bg-line';
-      stage.appendChild(el);
-      linePool.push(el);
-    }
-    for (let i = 0; i < linePool.length; i++) {
-      linePool[i].style.display = i < count ? '' : 'none';
-    }
-  }
+  let pretext: typeof import("@chenglou/pretext");
+  let backgroundText = "";
 
-  function commitLines(allLines: { x: number; y: number; text: string }[]) {
-    syncPool(allLines.length);
-    for (let i = 0; i < allLines.length; i++) {
-      const el = linePool[i], l = allLines[i];
-      el.textContent = l.text;
-      el.style.left = `${l.x}px`;
-      el.style.top = `${l.y}px`;
-    }
-    committed = allLines;
-  }
+  try {
+    const cacheBuster = import.meta.env.DEV ? `?_t=${Date.now()}` : "";
+    const [module, response] = await Promise.all([
+      import("@chenglou/pretext"),
+      fetch(`/content-index.json${cacheBuster}`),
+      document.fonts.ready,
+    ]);
+    if (!response.ok) return () => {};
 
-  // --- Per-pixel spotlight coloring via CSS gradient ---
-
-  const BASE_OPACITY = 0.055;
-  const MAX_OPACITY = 0.86;
-  const OPACITY_BOOST = 0.76;
-  const COLOR_THRESHOLD = 0.003;
-  const GRAD_SAMPLES = perfMode === 'lite' ? 8 : 12;
-
-  function updateLineColors() {
-    if (!committed) return;
-    const R = clamp(Math.min(W, H) * 0.2, 160, 280);
-    const R2 = R * R;
-    const halfLH = LINE_HEIGHT / 2;
-
-    for (let i = 0; i < committed.length; i++) {
-      const line = committed[i];
-      const el = linePool[i];
-      const ly = line.y + halfLH;
-
-      // Quick check using squared vertical distance (Fix #5: avoid sqrt)
-      let nearBody = false;
-      for (let j = 0; j < 3; j++) {
-        const dy2 = (ly - bodies[j].y);
-        if (dy2 * dy2 < R2) { nearBody = true; break; }
-      }
-
-      if (!nearBody) {
-        // Remove spotlight class if it was active
-        if (el.classList.contains('spotlit')) {
-          el.classList.remove('spotlit');
-          el.style.backgroundImage = '';
-          el.style.backgroundSize = '';
-          el.style.backgroundPosition = '';
-        }
-        continue;
-      }
-
-      // Build gradient string directly, no array allocation (Fix #3)
-      let grad = `linear-gradient(to right,`;
-      for (let s = 0; s <= GRAD_SAMPLES; s++) {
-        if (s > 0) grad += ',';
-        const frac = s / GRAD_SAMPLES;
-        const sx = frac * W;
-
-        let totalR = 0, totalG = 0, totalB = 0, totalWeight = 0;
-        for (let j = 0; j < 3; j++) {
-          const dx = sx - bodies[j].x;
-          const dy = ly - bodies[j].y;
-          // Fix #4: squared distance falloff, no sqrt
-          const dist2 = dx * dx + dy * dy;
-          const u = dist2 / R2;
-          const falloff = 1 - u;
-          const weight = u < 1 ? falloff * falloff : 0;
-          totalR += spotColors[j][0] * weight;
-          totalG += spotColors[j][1] * weight;
-          totalB += spotColors[j][2] * weight;
-          totalWeight += weight;
-        }
-
-        const pct = Math.round(frac * 100);
-        if (totalWeight > COLOR_THRESHOLD) {
-          const r = Math.round(totalR / totalWeight);
-          const g = Math.round(totalG / totalWeight);
-          const b = Math.round(totalB / totalWeight);
-          const a = Math.min(BASE_OPACITY + totalWeight * OPACITY_BOOST, MAX_OPACITY);
-          grad += `rgba(${r},${g},${b},${a}) ${pct}%`;
-        } else {
-          grad += `rgba(166,173,200,${BASE_OPACITY}) ${pct}%`;
-        }
-      }
-      grad += ')';
-
-      // Fix #2: constant styles set via class, only dynamic ones per frame
-      if (!el.classList.contains('spotlit')) el.classList.add('spotlit');
-      el.style.backgroundImage = grad;
-      el.style.backgroundSize = `${W}px 100%`;
-      el.style.backgroundPosition = `${-line.x}px 0`;
-    }
-  }
-
-  // --- Render loop ---
-
-  let lastCacheKey = '';
-  let lastFrame = 0;
-  const DT = perfMode === 'static' ? 250 : perfMode === 'lite' ? 66 : 33;
-
-  function render(now: number) {
-    rafId = requestAnimationFrame(render);
-
-    if (now - lastFrame < DT) return;
-    lastFrame = now;
-
-    const shouldTrackTerminal = geometryDirty || now < trackTermUntil || now - lastRectCheck > 240;
-    const termRect = shouldTrackTerminal ? refreshTerminalRect(true, now) : cachedTermRect;
-
-    if (perfMode !== 'static') {
-      stepBodies(now, termRect);
-    }
-
-    if (!prepared) return;
-
-    const curW = window.innerWidth;
-    const curH = window.innerHeight;
-    if (curW !== W || curH !== H) {
-      W = curW;
-      H = curH;
-      cx = W / 2;
-      cy = H / 2;
-      geometryDirty = true;
-    }
-
-    const cacheKey = `${curW}x${curH}|${cachedTermKey}`;
-
-    if (geometryDirty || cacheKey !== lastCacheKey) {
-      lastCacheKey = cacheKey;
-      geometryDirty = false;
-      const allLines = layoutAllLines(prepared, W, H, termRect);
-
-      const prev = committed;
-      const changed = !prev || prev.length !== allLines.length ||
-        allLines.some((l, idx) => {
-          const p = prev![idx];
-          return !p || p.x !== l.x || p.y !== l.y || l.text !== p.text;
-        });
-
-      if (changed) commitLines(allLines);
-    }
-
-    if (perfMode !== 'static') {
-      updateLineColors();
-    }
-  }
-
-  // --- Resize (Fix #8: just set dirty, render handles state) ---
-
-  const onResize = () => {
-    if (window.innerWidth <= 768) cancelAnimationFrame(rafId);
-    geometryDirty = true;
-    trackTermUntil = performance.now() + 500;
-  };
-  window.addEventListener('resize', onResize);
-
-  const onMouseMove = (event: MouseEvent) => {
-    if (event.buttons) trackTermUntil = performance.now() + 150;
-  };
-  const onMouseUp = () => {
-    geometryDirty = true;
-    trackTermUntil = performance.now() + 300;
-  };
-  window.addEventListener('mousemove', onMouseMove, { capture: true });
-  window.addEventListener('mouseup', onMouseUp, { capture: true });
-
-  // --- Init ---
-
-  const cacheBuster = import.meta.env.DEV ? `?_t=${Date.now()}` : '';
-  const res = await fetch(`/content-index.json${cacheBuster}`);
-  const data = await res.json();
-  const text = (data.backgroundText || '').slice(0, MAX_CHARS);
-  if (text.length < 50) {
-    // Cleanup if we bail out
-    themeObserver.disconnect();
-    window.removeEventListener('resize', onResize);
-    stage.remove();
+    const data = await response.json();
+    pretext = module;
+    backgroundText =
+      typeof data.backgroundText === "string"
+        ? data.backgroundText.slice(0, MAX_CHARS)
+        : "";
+  } catch {
     return () => {};
   }
 
-  await document.fonts.ready;
-  prepared = prepareWithSegments(text, font);
+  if (backgroundText.length < 50) return () => {};
+  if (document.querySelector(".bg-stage")) return () => {};
 
-  const initialTermRect = await waitForStableTerminalRect();
-  cachedTermRect = initialTermRect;
-  cachedTermKey = rectKey(initialTermRect);
-  lastRectCheck = performance.now();
-  commitLines(layoutAllLines(prepared, W, H, initialTermRect));
-  lastCacheKey = `${W}x${H}|${cachedTermKey}`;
-  geometryDirty = false;
+  const prepared = pretext.prepareWithSegments(backgroundText, font);
+  const stage = document.createElement("canvas");
+  stage.className = "bg-stage";
+  stage.setAttribute("aria-hidden", "true");
+  document.body.prepend(stage);
 
-  rafId = requestAnimationFrame(render);
+  const maskCanvas = document.createElement("canvas");
+  const maybeContext = stage.getContext("2d", { alpha: true });
+  const maybeMaskContext = maskCanvas.getContext("2d", { alpha: true });
 
-  // Fix #4: return cleanup function
+  if (!maybeContext || !maybeMaskContext) {
+    stage.remove();
+    return () => {};
+  }
+  const context = maybeContext;
+  const maskContext = maybeMaskContext;
+
+  let viewportWidth = window.innerWidth;
+  let viewportHeight = window.innerHeight;
+  let centerX = viewportWidth / 2;
+  let centerY = viewportHeight / 2;
+  let renderScale = 1;
+  let terminalGeometry: TerminalGeometry | null = null;
+  let geometryDirty = true;
+  let surfaceDirty = true;
+  let sceneDirty = true;
+  let destroyed = false;
+  let desktopActive = true;
+  let rafId = 0;
+  let lastLayoutAt = -Infinity;
+  let lastSimulationAt = 0;
+  let lastPaintAt = 0;
+
+  function readTerminalGeometry(): TerminalGeometry | null {
+    const element = document.querySelector<HTMLElement>(".terminal-window");
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      interacting: false,
+    };
+  }
+
+  function rectIntervalForBand(
+    rect: TerminalGeometry,
+    bandTop: number,
+    bandBottom: number,
+  ): { left: number; right: number } | null {
+    const left = rect.left - PAD;
+    const right = rect.left + rect.width + PAD;
+    const top = rect.top - PAD;
+    const bottom = rect.top + rect.height + PAD;
+    if (bandBottom <= top || bandTop >= bottom) return null;
+
+    const radius = Math.min(
+      WRAP_CORNER_RADIUS,
+      (right - left) / 2,
+      (bottom - top) / 2,
+    );
+    let inset = 0;
+
+    // Use the widest part touched by this text band. Consecutive lines then
+    // follow the terminal as a rounded envelope instead of snapping to a box.
+    if (bandBottom < top + radius) {
+      const distanceFromCenter = top + radius - Math.max(top, bandBottom);
+      inset =
+        radius -
+        Math.sqrt(
+          Math.max(
+            0,
+            radius * radius - distanceFromCenter * distanceFromCenter,
+          ),
+        );
+    } else if (bandTop > bottom - radius) {
+      const distanceFromCenter = Math.min(bottom, bandTop) - (bottom - radius);
+      inset =
+        radius -
+        Math.sqrt(
+          Math.max(
+            0,
+            radius * radius - distanceFromCenter * distanceFromCenter,
+          ),
+        );
+    }
+
+    return { left: left + inset, right: right - inset };
+  }
+
+  function addRoundedRectPath(
+    target: CanvasRenderingContext2D,
+    left: number,
+    top: number,
+    width: number,
+    height: number,
+    radius: number,
+  ): void {
+    const safeRadius = Math.min(radius, width / 2, height / 2);
+    target.beginPath();
+    target.moveTo(left + safeRadius, top);
+    target.lineTo(left + width - safeRadius, top);
+    target.quadraticCurveTo(left + width, top, left + width, top + safeRadius);
+    target.lineTo(left + width, top + height - safeRadius);
+    target.quadraticCurveTo(
+      left + width,
+      top + height,
+      left + width - safeRadius,
+      top + height,
+    );
+    target.lineTo(left + safeRadius, top + height);
+    target.quadraticCurveTo(
+      left,
+      top + height,
+      left,
+      top + height - safeRadius,
+    );
+    target.lineTo(left, top + safeRadius);
+    target.quadraticCurveTo(left, top, left + safeRadius, top);
+    target.closePath();
+  }
+
+  function carveSlots(
+    base: { left: number; right: number },
+    blocked: { left: number; right: number } | null,
+  ): { left: number; right: number }[] {
+    if (!blocked || blocked.right <= base.left || blocked.left >= base.right) {
+      return [base];
+    }
+
+    const slots: { left: number; right: number }[] = [];
+    if (blocked.left - base.left >= MIN_SLOT_WIDTH) {
+      slots.push({
+        left: base.left,
+        right: Math.min(blocked.left, base.right),
+      });
+    }
+    if (base.right - blocked.right >= MIN_SLOT_WIDTH) {
+      slots.push({
+        left: Math.max(blocked.right, base.left),
+        right: base.right,
+      });
+    }
+    return slots;
+  }
+
+  function layoutAllLines(rect: TerminalGeometry | null): PositionedLine[] {
+    const base = { left: GUTTER, right: viewportWidth - GUTTER };
+    const lines: PositionedLine[] = [];
+    let cursor = { segmentIndex: 0, graphemeIndex: 0 };
+
+    for (
+      let lineTop = GUTTER;
+      lineTop + LINE_HEIGHT <= viewportHeight - GUTTER / 2;
+      lineTop += LINE_HEIGHT
+    ) {
+      const blocked = rect
+        ? rectIntervalForBand(rect, lineTop, lineTop + LINE_HEIGHT)
+        : null;
+      const slots = carveSlots(base, blocked);
+
+      for (const slot of slots) {
+        const slotWidth = Math.round(slot.right - slot.left);
+        let line = pretext.layoutNextLine(prepared, cursor, slotWidth);
+        if (line === null) {
+          cursor = { segmentIndex: 0, graphemeIndex: 0 };
+          line = pretext.layoutNextLine(prepared, cursor, slotWidth);
+        }
+        if (line === null) continue;
+
+        lines.push({
+          x: Math.round(slot.left),
+          y: Math.round(lineTop),
+          text: line.text,
+        });
+        cursor = line.end;
+      }
+    }
+
+    return lines;
+  }
+
+  function paintTextMask(lines: PositionedLine[]): void {
+    maskContext.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+    maskContext.clearRect(0, 0, viewportWidth, viewportHeight);
+    maskContext.font = font;
+    maskContext.textBaseline = "top";
+    maskContext.fillStyle = "#fff";
+
+    for (const line of lines) {
+      maskContext.fillText(line.text, line.x, line.y + TEXT_TOP_OFFSET);
+    }
+  }
+
+  function parseThemeColor(value: string, fallback: RGB): RGB {
+    const hex = value.trim();
+    const short = /^#([\da-f])([\da-f])([\da-f])$/i.exec(hex);
+    if (short) {
+      return short.slice(1).map((part) => parseInt(part + part, 16)) as RGB;
+    }
+    const full = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex);
+    if (full) {
+      return full.slice(1).map((part) => parseInt(part, 16)) as RGB;
+    }
+    return fallback;
+  }
+
+  function rgba(color: RGB, alpha: number): string {
+    return `rgba(${color[0]},${color[1]},${color[2]},${alpha})`;
+  }
+
+  function blendColor(foreground: RGB, background: RGB, strength: number): RGB {
+    return foreground.map((channel, index) =>
+      Math.round(channel * strength + background[index] * (1 - strength)),
+    ) as RGB;
+  }
+
+  function readThemeColors(): { base: RGB; spots: [RGB, RGB, RGB] } {
+    const styles = getComputedStyle(document.documentElement);
+    const base = parseThemeColor(
+      styles.getPropertyValue("--subtext"),
+      [166, 173, 200],
+    );
+    const spots: [RGB, RGB, RGB] = [
+      parseThemeColor(styles.getPropertyValue("--blue"), [137, 180, 250]),
+      parseThemeColor(styles.getPropertyValue("--mauve"), [203, 166, 247]),
+      parseThemeColor(styles.getPropertyValue("--green"), [166, 227, 161]),
+    ];
+    return {
+      base,
+      spots: spots.map((color) =>
+        blendColor(color, base, SPOT_COLOR_STRENGTH),
+      ) as [RGB, RGB, RGB],
+    };
+  }
+
+  let themeColors = readThemeColors();
+  const spread = Math.min(viewportWidth, viewportHeight) * 0.25;
+  const orbitVelocity = 1.8;
+  const bodies: SpotBody[] = [0, 1, 2].map((index) => {
+    const angle = -Math.PI / 2 + index * 2.094;
+    return {
+      x: centerX + Math.cos(angle) * spread,
+      y: centerY + Math.sin(angle) * spread,
+      vx: Math.cos(angle + Math.PI / 2) * orbitVelocity,
+      vy: Math.sin(angle + Math.PI / 2) * orbitVelocity,
+    };
+  });
+
+  const accelerationX = new Float64Array(3);
+  const accelerationY = new Float64Array(3);
+  const GRAVITY = 800;
+  const SOFTENING_SQUARED = 80 * 80;
+  const MAX_VELOCITY = 4;
+  const VIEWPORT_BUFFER = 40;
+  const SPOTLIGHT_CORE_RATIO = 0.46;
+  const MIN_EDGE_VELOCITY = 1.35;
+
+  function spotlightRadius(): number {
+    return Math.max(190, Math.min(viewportWidth, viewportHeight) * 0.235);
+  }
+
+  function resolveTerminalCollision(body: SpotBody): void {
+    if (!terminalGeometry) return;
+
+    const terminalRight = terminalGeometry.left + terminalGeometry.width;
+    const terminalBottom = terminalGeometry.top + terminalGeometry.height;
+    const largestCorridor = Math.max(
+      terminalGeometry.left - VIEWPORT_BUFFER,
+      viewportWidth - VIEWPORT_BUFFER - terminalRight,
+      terminalGeometry.top - VIEWPORT_BUFFER,
+      viewportHeight - VIEWPORT_BUFFER - terminalBottom,
+    );
+    const clearance = Math.min(
+      spotlightRadius() * SPOTLIGHT_CORE_RATIO + PAD,
+      Math.max(32, largestCorridor - 8),
+    );
+    const left = terminalGeometry.left - clearance;
+    const right = terminalRight + clearance;
+    const top = terminalGeometry.top - clearance;
+    const bottom = terminalBottom + clearance;
+    const radius = Math.min(
+      WRAP_CORNER_RADIUS + clearance * 0.35,
+      (right - left) / 2,
+      (bottom - top) / 2,
+    );
+
+    const cornerCenterX = Math.min(
+      right - radius,
+      Math.max(left + radius, body.x),
+    );
+    const cornerCenterY = Math.min(
+      bottom - radius,
+      Math.max(top + radius, body.y),
+    );
+    const dx = body.x - cornerCenterX;
+    const dy = body.y - cornerCenterY;
+    const distanceSquared = dx * dx + dy * dy;
+    if (distanceSquared >= radius * radius) return;
+
+    let targetX = body.x;
+    let targetY = body.y;
+    let normalX = 0;
+    let normalY = 0;
+
+    if (distanceSquared > 0.0001) {
+      const distance = Math.sqrt(distanceSquared);
+      normalX = dx / distance;
+      normalY = dy / distance;
+      targetX = cornerCenterX + normalX * (radius + 1);
+      targetY = cornerCenterY + normalY * (radius + 1);
+    }
+
+    const radialExitIsVisible =
+      distanceSquared > 0.0001 &&
+      targetX >= VIEWPORT_BUFFER &&
+      targetX <= viewportWidth - VIEWPORT_BUFFER &&
+      targetY >= VIEWPORT_BUFFER &&
+      targetY <= viewportHeight - VIEWPORT_BUFFER;
+
+    if (!radialExitIsVisible) {
+      const exits = [
+        {
+          distance: body.x - left,
+          x: left - 1,
+          y: body.y,
+          nx: -1,
+          ny: 0,
+          available: left >= VIEWPORT_BUFFER,
+        },
+        {
+          distance: right - body.x,
+          x: right + 1,
+          y: body.y,
+          nx: 1,
+          ny: 0,
+          available: right <= viewportWidth - VIEWPORT_BUFFER,
+        },
+        {
+          distance: body.y - top,
+          x: body.x,
+          y: top - 1,
+          nx: 0,
+          ny: -1,
+          available: top >= VIEWPORT_BUFFER,
+        },
+        {
+          distance: bottom - body.y,
+          x: body.x,
+          y: bottom + 1,
+          nx: 0,
+          ny: 1,
+          available: bottom <= viewportHeight - VIEWPORT_BUFFER,
+        },
+      ];
+      let nearestExit: (typeof exits)[number] | null = null;
+      for (const exit of exits) {
+        if (
+          exit.available &&
+          exit.distance >= 0 &&
+          (!nearestExit || exit.distance < nearestExit.distance)
+        ) {
+          nearestExit = exit;
+        }
+      }
+      if (!nearestExit) return;
+      targetX = nearestExit.x;
+      targetY = nearestExit.y;
+      normalX = nearestExit.nx;
+      normalY = nearestExit.ny;
+    }
+
+    body.x = targetX;
+    body.y = targetY;
+
+    // Reflect only the inward component. Tangential velocity survives, so a
+    // spotlight glances around the rounded terminal instead of sticking to it.
+    const inwardVelocity = body.vx * normalX + body.vy * normalY;
+    if (inwardVelocity < 0) {
+      const impulse = inwardVelocity * 1.45;
+      body.vx -= impulse * normalX;
+      body.vy -= impulse * normalY;
+    }
+
+    // Keep a visible clockwise drift around the obstacle. Gravity still
+    // perturbs the paths, but no body can lose all motion against a flat edge.
+    const tangentX = -normalY;
+    const tangentY = normalX;
+    const tangentVelocity = body.vx * tangentX + body.vy * tangentY;
+    if (tangentVelocity < MIN_EDGE_VELOCITY) {
+      const boost = MIN_EDGE_VELOCITY - tangentVelocity;
+      body.vx += tangentX * boost;
+      body.vy += tangentY * boost;
+    }
+  }
+
+  function resolveAllTerminalCollisions(): void {
+    for (const body of bodies) resolveTerminalCollision(body);
+  }
+
+  function stepBodies(frameScale: number): void {
+    accelerationX.fill(0);
+    accelerationY.fill(0);
+
+    for (let i = 0; i < bodies.length; i++) {
+      for (let j = i + 1; j < bodies.length; j++) {
+        const dx = bodies[j].x - bodies[i].x;
+        const dy = bodies[j].y - bodies[i].y;
+        const distanceSquared = dx * dx + dy * dy + SOFTENING_SQUARED;
+        const distance = Math.sqrt(distanceSquared);
+        const force = GRAVITY / distanceSquared;
+        const forceX = (force * dx) / distance;
+        const forceY = (force * dy) / distance;
+        accelerationX[i] += forceX;
+        accelerationY[i] += forceY;
+        accelerationX[j] -= forceX;
+        accelerationY[j] -= forceY;
+      }
+    }
+
+    for (let index = 0; index < bodies.length; index++) {
+      const body = bodies[index];
+      body.vx += accelerationX[index] * frameScale;
+      body.vy += accelerationY[index] * frameScale;
+      body.vx += (centerX - body.x) * 1e-5 * frameScale;
+      body.vy += (centerY - body.y) * 1e-5 * frameScale;
+
+      const speed = Math.hypot(body.vx, body.vy);
+      if (speed > MAX_VELOCITY) {
+        body.vx *= MAX_VELOCITY / speed;
+        body.vy *= MAX_VELOCITY / speed;
+      }
+
+      body.x += body.vx * frameScale;
+      body.y += body.vy * frameScale;
+
+      if (body.x < VIEWPORT_BUFFER) {
+        body.x = VIEWPORT_BUFFER;
+        body.vx = Math.abs(body.vx) * 0.5;
+      } else if (body.x > viewportWidth - VIEWPORT_BUFFER) {
+        body.x = viewportWidth - VIEWPORT_BUFFER;
+        body.vx = -Math.abs(body.vx) * 0.5;
+      }
+      if (body.y < VIEWPORT_BUFFER) {
+        body.y = VIEWPORT_BUFFER;
+        body.vy = Math.abs(body.vy) * 0.5;
+      } else if (body.y > viewportHeight - VIEWPORT_BUFFER) {
+        body.y = viewportHeight - VIEWPORT_BUFFER;
+        body.vy = -Math.abs(body.vy) * 0.5;
+      }
+      resolveTerminalCollision(body);
+    }
+  }
+
+  function paintScene(): void {
+    context.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+    context.globalCompositeOperation = "source-over";
+    context.clearRect(0, 0, viewportWidth, viewportHeight);
+    context.fillStyle = rgba(themeColors.base, BASE_OPACITY);
+    context.fillRect(0, 0, viewportWidth, viewportHeight);
+
+    const radius = spotlightRadius();
+    for (let index = 0; index < bodies.length; index++) {
+      const body = bodies[index];
+      const color = themeColors.spots[index];
+      const radiusX = Math.max(
+        1,
+        Math.min(radius, body.x, viewportWidth - body.x),
+      );
+      const radiusY = Math.max(
+        1,
+        Math.min(radius, body.y, viewportHeight - body.y),
+      );
+
+      context.save();
+      context.translate(body.x, body.y);
+      context.scale(radiusX / radius, radiusY / radius);
+      const gradient = context.createRadialGradient(0, 0, 0, 0, 0, radius);
+      gradient.addColorStop(0, rgba(color, 0.68));
+      gradient.addColorStop(0.2, rgba(color, 0.62));
+      gradient.addColorStop(0.5, rgba(color, 0.36));
+      gradient.addColorStop(0.8, rgba(color, 0.1));
+      gradient.addColorStop(1, rgba(color, 0));
+      context.fillStyle = gradient;
+      context.fillRect(-radius, -radius, radius * 2, radius * 2);
+      context.restore();
+    }
+    context.globalCompositeOperation = "destination-in";
+    context.drawImage(
+      maskCanvas,
+      0,
+      0,
+      maskCanvas.width,
+      maskCanvas.height,
+      0,
+      0,
+      viewportWidth,
+      viewportHeight,
+    );
+    // The exact cutout updates every interaction frame. Its broad rounded edge
+    // matches the Pretext envelope, while two cheap alpha strokes avoid a hard
+    // cut without paying for a canvas blur on every animation frame.
+    if (terminalGeometry) {
+      const left = terminalGeometry.left - PAD;
+      const top = terminalGeometry.top - PAD;
+      const width = terminalGeometry.width + PAD * 2;
+      const height = terminalGeometry.height + PAD * 2;
+      const radius = Math.min(WRAP_CORNER_RADIUS, width / 2, height / 2);
+
+      context.save();
+      context.globalCompositeOperation = "destination-out";
+      context.strokeStyle = "#000";
+      context.fillStyle = "#000";
+      addRoundedRectPath(context, left, top, width, height, radius);
+      context.globalAlpha = 0.12;
+      context.lineWidth = CUTOUT_FEATHER * 2;
+      context.stroke();
+      context.globalAlpha = 0.32;
+      context.lineWidth = CUTOUT_FEATHER;
+      context.stroke();
+      context.globalAlpha = 1;
+      context.fill();
+      context.restore();
+    }
+  }
+
+  function resizeSurface(): void {
+    viewportWidth = window.innerWidth;
+    viewportHeight = window.innerHeight;
+    centerX = viewportWidth / 2;
+    centerY = viewportHeight / 2;
+    renderScale = Math.min(window.devicePixelRatio || 1, MAX_RENDER_SCALE);
+
+    const pixelWidth = Math.max(1, Math.round(viewportWidth * renderScale));
+    const pixelHeight = Math.max(1, Math.round(viewportHeight * renderScale));
+    stage.width = pixelWidth;
+    stage.height = pixelHeight;
+    maskCanvas.width = pixelWidth;
+    maskCanvas.height = pixelHeight;
+
+    terminalGeometry = readTerminalGeometry();
+    resolveAllTerminalCollisions();
+    geometryDirty = true;
+    sceneDirty = true;
+  }
+
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let reducedMotion = motionQuery.matches;
+
+  function scheduleFrame(): void {
+    if (destroyed || !desktopActive || rafId !== 0) return;
+    rafId = requestAnimationFrame(render);
+  }
+
+  function render(now: number): void {
+    rafId = 0;
+    if (destroyed || !desktopActive) return;
+
+    if (surfaceDirty) {
+      surfaceDirty = false;
+      resizeSurface();
+    }
+
+    const canReflow =
+      geometryDirty &&
+      (!terminalGeometry?.interacting ||
+        now - lastLayoutAt >= INTERACTIVE_LAYOUT_MS);
+    if (canReflow) {
+      paintTextMask(layoutAllLines(terminalGeometry));
+      geometryDirty = false;
+      sceneDirty = true;
+      lastLayoutAt = now;
+    }
+
+    const spotlightFrameMs = reducedMotion
+      ? REDUCED_MOTION_FRAME_MS
+      : SPOTLIGHT_FRAME_MS;
+    const motionScale = reducedMotion ? REDUCED_MOTION_SCALE : 1;
+
+    if (lastSimulationAt === 0 || now - lastSimulationAt >= spotlightFrameMs) {
+      const frameScale =
+        lastSimulationAt === 0
+          ? 1
+          : Math.min(
+              2,
+              Math.max(0.5, (now - lastSimulationAt) / SPOTLIGHT_FRAME_MS),
+            );
+      stepBodies(frameScale * motionScale * MOTION_SPEED_MULTIPLIER);
+      lastSimulationAt = now;
+      sceneDirty = true;
+    }
+
+    const canPaint =
+      sceneDirty &&
+      (!terminalGeometry?.interacting ||
+        lastPaintAt === 0 ||
+        now - lastPaintAt >= spotlightFrameMs);
+    if (canPaint) {
+      paintScene();
+      sceneDirty = false;
+      lastPaintAt = now;
+    }
+
+    scheduleFrame();
+  }
+
+  function onTerminalGeometry(event: Event): void {
+    const next = (event as CustomEvent<TerminalGeometry>).detail;
+    if (
+      !next ||
+      !Number.isFinite(next.left) ||
+      !Number.isFinite(next.top) ||
+      !Number.isFinite(next.width) ||
+      !Number.isFinite(next.height)
+    ) {
+      return;
+    }
+
+    terminalGeometry = next;
+    resolveAllTerminalCollisions();
+    geometryDirty = true;
+    sceneDirty = true;
+    scheduleFrame();
+  }
+
+  function onResize(): void {
+    desktopActive = window.innerWidth > 768;
+    if (!desktopActive) {
+      if (rafId !== 0) cancelAnimationFrame(rafId);
+      rafId = 0;
+      return;
+    }
+
+    surfaceDirty = true;
+    scheduleFrame();
+  }
+
+  function onMotionPreferenceChange(): void {
+    reducedMotion = motionQuery.matches;
+    lastSimulationAt = 0;
+    sceneDirty = true;
+    scheduleFrame();
+  }
+
+  const themeObserver = new MutationObserver(() => {
+    themeColors = readThemeColors();
+    sceneDirty = true;
+    scheduleFrame();
+  });
+
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
+  window.addEventListener(TERMINAL_GEOMETRY_EVENT, onTerminalGeometry);
+  window.addEventListener("resize", onResize, { passive: true });
+  motionQuery.addEventListener("change", onMotionPreferenceChange);
+  scheduleFrame();
+
   return () => {
-    cancelAnimationFrame(rafId);
+    destroyed = true;
+    if (rafId !== 0) cancelAnimationFrame(rafId);
     themeObserver.disconnect();
-    window.removeEventListener('resize', onResize);
-    window.removeEventListener('mousemove', onMouseMove, { capture: true });
-    window.removeEventListener('mouseup', onMouseUp, { capture: true });
+    window.removeEventListener(TERMINAL_GEOMETRY_EVENT, onTerminalGeometry);
+    window.removeEventListener("resize", onResize);
+    motionQuery.removeEventListener("change", onMotionPreferenceChange);
     stage.remove();
   };
 }

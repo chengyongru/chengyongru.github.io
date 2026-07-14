@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 .astro/
+coverage/
 public/*
 !public/favicon.svg
 !public/fonts/

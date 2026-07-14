@@ -11,6 +11,7 @@ import { completeTerminalInput, type TabCycleState } from '../terminal/autocompl
 import { quoteCommandArg } from '../terminal/command-line';
 import { normalizeTheme } from '../terminal/theme';
 import { selectHomePosts } from '../terminal/home';
+import { emitTerminalGeometry, type TerminalGeometry } from '../terminal/geometry';
 import type { FileEntry, PostContent, PostMeta } from '../terminal/types';
 import config from '../config';
 
@@ -117,7 +118,11 @@ export default function Terminal() {
   const bodyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const winRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ ox: number; oy: number } | null>(null);
+  const dragRef = useRef<{
+    ox: number; oy: number;
+    sl: number; st: number;
+    w: number; h: number;
+  } | null>(null);
   const resizeRef = useRef<{
     sx: number; sy: number;
     sw: number; sh: number;
@@ -198,51 +203,125 @@ export default function Terminal() {
     });
   }, []);
 
-  // Drag & resize — direct DOM manipulation for smoothness, sync state on mouseup
+  // Drag & resize — batch pointer input to one visual update per frame.
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
+    let moveRaf = 0;
+    let pendingPoint: { x: number; y: number } | null = null;
+    let lastGeometry: TerminalGeometry | null = null;
+
+    const applyPendingMove = () => {
+      moveRaf = 0;
+      const point = pendingPoint;
       const el = winRef.current;
-      if (!el) return;
+      pendingPoint = null;
+      if (!point || !el) return;
 
       if (dragRef.current) {
-        el.style.left = `${e.clientX - dragRef.current.ox}px`;
-        el.style.top = `${e.clientY - dragRef.current.oy}px`;
+        const drag = dragRef.current;
+        const left = point.x - drag.ox;
+        const top = point.y - drag.oy;
+        el.style.transform = `translate3d(${left - drag.sl}px, ${top - drag.st}px, 0)`;
+        lastGeometry = {
+          left,
+          top,
+          width: drag.w,
+          height: drag.h,
+          interacting: true,
+        };
+      } else if (resizeRef.current) {
+        const resize = resizeRef.current;
+        const dx = point.x - resize.sx;
+        const dy = point.y - resize.sy;
+        let width = resize.sw, height = resize.sh, left = resize.sl, top = resize.st;
+        if (resize.dir.includes('e')) width = Math.max(MIN_W, resize.sw + dx);
+        if (resize.dir.includes('s')) height = Math.max(MIN_H, resize.sh + dy);
+        if (resize.dir.includes('w')) {
+          width = Math.max(MIN_W, resize.sw - dx);
+          left = resize.sl + resize.sw - width;
+        }
+        if (resize.dir.includes('n')) {
+          height = Math.max(MIN_H, resize.sh - dy);
+          top = resize.st + resize.sh - height;
+        }
+        el.style.left = `${left}px`;
+        el.style.top = `${top}px`;
+        el.style.width = `${width}px`;
+        el.style.height = `${height}px`;
+        lastGeometry = { left, top, width, height, interacting: true };
       }
 
-      if (resizeRef.current) {
-        const r = resizeRef.current;
-        const dx = e.clientX - r.sx;
-        const dy = e.clientY - r.sy;
-        let nw = r.sw, nh = r.sh, nl = r.sl, nt = r.st;
-        if (r.dir.includes('e')) nw = Math.max(MIN_W, r.sw + dx);
-        if (r.dir.includes('s')) nh = Math.max(MIN_H, r.sh + dy);
-        if (r.dir.includes('w')) { nw = Math.max(MIN_W, r.sw - dx); nl = r.sl + r.sw - nw; }
-        if (r.dir.includes('n')) { nh = Math.max(MIN_H, r.sh - dy); nt = r.st + r.sh - nh; }
-        el.style.left = `${nl}px`;
-        el.style.top = `${nt}px`;
-        el.style.width = `${nw}px`;
-        el.style.height = `${nh}px`;
-      }
+      if (lastGeometry) emitTerminalGeometry(lastGeometry);
+    };
+
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current && !resizeRef.current) return;
+      pendingPoint = { x: e.clientX, y: e.clientY };
+      if (moveRaf === 0) moveRaf = requestAnimationFrame(applyPendingMove);
     };
 
     const onUp = () => {
       const el = winRef.current;
-      if (el && (dragRef.current || resizeRef.current)) {
-        const rect = el.getBoundingClientRect();
-        setWinPos({ x: rect.left, y: rect.top });
-        setWinSize({ w: rect.width, h: rect.height });
+      const wasDragging = dragRef.current !== null;
+      const wasResizing = resizeRef.current !== null;
+      if (!el || (!wasDragging && !wasResizing)) return;
+
+      if (moveRaf !== 0) {
+        cancelAnimationFrame(moveRaf);
+        applyPendingMove();
       }
+
+      const rect = lastGeometry ?? (() => {
+        const measured = el.getBoundingClientRect();
+        return {
+          left: measured.left,
+          top: measured.top,
+          width: measured.width,
+          height: measured.height,
+          interacting: false,
+        };
+      })();
+
+      // Commit transform-based dragging back to left/top before Preact syncs state.
+      el.style.left = `${rect.left}px`;
+      el.style.top = `${rect.top}px`;
+      el.style.width = `${rect.width}px`;
+      el.style.height = `${rect.height}px`;
+      el.style.transform = '';
+      el.classList.remove('is-interacting');
+      setWinPos({ x: rect.left, y: rect.top });
+      setWinSize({ w: rect.width, h: rect.height });
+      emitTerminalGeometry({ ...rect, interacting: false });
+
       dragRef.current = null;
       resizeRef.current = null;
+      lastGeometry = null;
     };
 
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
     return () => {
+      if (moveRaf !== 0) cancelAnimationFrame(moveRaf);
+      winRef.current?.classList.remove('is-interacting');
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
   }, []);
+
+  // Notify the background after state-driven moves (mount, maximize, restore).
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      const rect = winRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      emitTerminalGeometry({
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+        interacting: false,
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [winPos.x, winPos.y, winSize.w, winSize.h, maximized]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -289,8 +368,17 @@ export default function Terminal() {
   const onTitleMouseDown = useCallback((e: MouseEvent) => {
     if (maximized) return;
     if ((e.target as HTMLElement).closest('.title-dots')) return;
-    dragRef.current = { ox: e.clientX - winPos.x, oy: e.clientY - winPos.y };
-  }, [winPos.x, winPos.y, maximized]);
+    e.preventDefault();
+    winRef.current?.classList.add('is-interacting');
+    dragRef.current = {
+      ox: e.clientX - winPos.x,
+      oy: e.clientY - winPos.y,
+      sl: winPos.x,
+      st: winPos.y,
+      w: winSize.w,
+      h: winSize.h,
+    };
+  }, [winPos.x, winPos.y, winSize.w, winSize.h, maximized]);
 
   const toggleMaximize = useCallback(() => {
     if (maximized) {
@@ -309,6 +397,7 @@ export default function Terminal() {
     if (maximized) return;
     e.preventDefault();
     e.stopPropagation();
+    winRef.current?.classList.add('is-interacting');
     resizeRef.current = {
       sx: e.clientX, sy: e.clientY,
       sw: winSize.w, sh: winSize.h,
