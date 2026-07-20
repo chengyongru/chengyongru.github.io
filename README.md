@@ -284,7 +284,7 @@ ls cd cat grep tag recent about neofetch help clear theme whoami echo date histo
 
 当前工作流在 `.github/workflows/deploy.yml`：
 
-- 触发分支：`v4`
+- 触发分支：`main`
 - Node.js：`22`
 - 安装：`npm ci`
 - checkout：`submodules: recursive`
