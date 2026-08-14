@@ -43,6 +43,7 @@
             <li>
                 <a href="{{ .URL | relLangURL }}" title="{{ .Title | default .Name }} {{- cond $is_search (" (Alt + /)" | safeHTMLAttr) ("" | safeHTMLAttr ) }}"
                 {{- if eq .Identifier "graph" }} class="global-graph-trigger" aria-haspopup="dialog" aria-expanded="false" {{- end }}
+                {{- if $is_search }} class="global-search-trigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="global-search" {{- end }}
                 {{- cond $is_search (" accesskey=/" | safeHTMLAttr) ("" | safeHTMLAttr ) }}>
                     <span {{- if eq $menu_item_url $page_url }} class="active" {{- end }}>
                         {{- .Pre }}

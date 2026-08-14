@@ -1,13 +1,21 @@
 import * as params from '@params';
 
+const modal = document.getElementById('global-search');
+const dialog = modal?.querySelector('.global-search-dialog');
+const closeButton = document.getElementById('search-close');
+const clearButton = document.getElementById('search-clear');
 const resList = document.getElementById('searchResults');
 const sInput = document.getElementById('searchInput');
 const searchBox = document.getElementById('searchbox');
+const status = document.getElementById('search-status');
+const triggers = Array.from(document.querySelectorAll('.global-search-trigger'));
 
 let fuse;
+let fusePromise;
 let currentElement = null;
 let firstResult = null;
 let lastResult = null;
+let restoreFocusTo = null;
 
 const defaultFuseOptions = {
     distance: 100,
@@ -44,67 +52,71 @@ const debounce = (fn, delay) => {
     };
 };
 
+const setStatus = (message) => {
+    if (status) {
+        status.textContent = message;
+    }
+};
+
 const reset = () => {
     currentElement = null;
     firstResult = null;
     lastResult = null;
-    resList.innerHTML = '';
+    resList.replaceChildren();
     sInput.value = '';
-    sInput.focus();
+    setStatus('');
 };
 
 const setActiveResult = (element) => {
-    document.querySelectorAll('.focus').forEach((item) => item.classList.remove('focus'));
+    resList.querySelectorAll('.focus').forEach((item) => item.classList.remove('focus'));
 
     if (!element) {
         return;
     }
 
     element.focus();
-    element.parentElement?.classList.add('focus');
+    element.classList.add('focus');
     currentElement = element;
 };
 
-const renderResults = (results) => {
-    if (!Array.isArray(results) || results.length === 0) {
-        resList.innerHTML = '';
-        firstResult = lastResult = currentElement = null;
-        return;
-    }
+const createResult = (result) => {
+    const li = document.createElement('li');
+    const link = document.createElement('a');
+    const title = document.createElement('span');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 
+    link.className = 'search-result-link';
+    link.href = result.item.permalink;
+    title.textContent = result.item.title;
+
+    svg.setAttribute('width', '18');
+    svg.setAttribute('height', '18');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '1.5');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = '<path d="m9 18 6-6-6-6"></path>';
+
+    link.append(title, svg);
+    li.append(link);
+    return li;
+};
+
+const renderResults = (results) => {
     const fragment = document.createDocumentFragment();
 
     for (const result of results) {
-        const li = document.createElement('li');
-        const titleText = document.createTextNode(result.item.title);
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('width', '24');
-        svg.setAttribute('height', '24');
-        svg.setAttribute('viewBox', '0 0 24 24');
-        svg.setAttribute('fill', 'none');
-        svg.setAttribute('stroke', 'currentColor');
-        svg.setAttribute('stroke-width', '2');
-        svg.setAttribute('stroke-linecap', 'round');
-        svg.setAttribute('stroke-linejoin', 'round');
-        svg.classList.add('feather', 'feather-chevrons-right');
-
-        svg.innerHTML = '<polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline>';
-
-        const link = document.createElement('a');
-        link.className = 'entry-link';
-        link.href = result.item.permalink;
-        link.setAttribute('aria-label', result.item.title);
-
-        li.appendChild(titleText);
-        li.appendChild(svg);
-        li.appendChild(link);
-        fragment.appendChild(li);
+        fragment.append(createResult(result));
     }
 
-    resList.innerHTML = '';
-    resList.appendChild(fragment);
+    resList.replaceChildren(fragment);
     firstResult = resList.firstElementChild;
     lastResult = resList.lastElementChild;
+    currentElement = null;
+    setStatus(results.length === 1 ? '1 result' : `${results.length} results`);
 };
 
 const performSearch = () => {
@@ -115,6 +127,7 @@ const performSearch = () => {
     const query = sInput.value.trim();
     if (!query) {
         renderResults([]);
+        setStatus('');
         return;
     }
 
@@ -123,72 +136,151 @@ const performSearch = () => {
     renderResults(results);
 };
 
-const initSearch = async () => {
-    if (!sInput || !resList) {
+const loadSearchIndex = () => {
+    if (fuse) {
+        return Promise.resolve(fuse);
+    }
+    if (fusePromise) {
+        return fusePromise;
+    }
+
+    fusePromise = fetch(params.indexURL)
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error(`Search index load failed: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then((data) => {
+            fuse = new Fuse(data, buildFuseOptions());
+            performSearch();
+            return fuse;
+        })
+        .catch((error) => {
+            fusePromise = null;
+            setStatus('Search is unavailable.');
+            console.error(error);
+        });
+
+    return fusePromise;
+};
+
+const setBackgroundInert = (isInert) => {
+    document.querySelectorAll('body > header, body > main, body > footer, body > .top-link').forEach((element) => {
+        element.inert = isInert;
+    });
+};
+
+const openSearch = () => {
+    if (!modal || modal.classList.contains('active')) {
         return;
     }
 
-    sInput.disabled = false;
+    restoreFocusTo = document.activeElement;
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('search-modal-open');
+    setBackgroundInert(true);
+    triggers.forEach((trigger) => trigger.setAttribute('aria-expanded', 'true'));
     sInput.focus();
+    loadSearchIndex();
+};
 
-    try {
-        const response = await fetch('../index.json');
-        if (!response.ok) {
-            throw new Error(`Search index load failed: ${response.status}`);
-        }
+const closeSearch = () => {
+    if (!modal?.classList.contains('active')) {
+        return;
+    }
 
-        const data = await response.json();
-        if (data) {
-            fuse = new Fuse(data, buildFuseOptions());
-        }
-    } catch (error) {
-        console.error(error);
+    reset();
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('search-modal-open');
+    setBackgroundInert(false);
+    triggers.forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+
+    if (restoreFocusTo?.isConnected) {
+        restoreFocusTo.focus();
+    }
+    restoreFocusTo = null;
+};
+
+const trapFocus = (event) => {
+    if (event.key !== 'Tab') {
+        return;
+    }
+
+    const focusable = Array.from(dialog.querySelectorAll('button:not([disabled]), input:not([disabled]), a[href]'))
+        .filter((element) => element.offsetParent !== null);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
     }
 };
 
-window.addEventListener('load', initSearch);
+triggers.forEach((trigger) => {
+    trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        openSearch();
+    });
+});
 
-sInput?.addEventListener('input', debounce(performSearch, 150));
+closeButton?.addEventListener('click', closeSearch);
+clearButton?.addEventListener('click', () => {
+    sInput.value = '';
+    renderResults([]);
+    setStatus('');
+    sInput.focus();
+});
 
+modal?.addEventListener('click', (event) => {
+    if (!event.target.closest('.global-search-dialog')) {
+        closeSearch();
+    }
+});
+
+dialog?.addEventListener('keydown', trapFocus);
+sInput?.addEventListener('input', debounce(performSearch, 120));
 sInput?.addEventListener('search', () => {
     if (!sInput.value) {
-        reset();
+        renderResults([]);
+        setStatus('');
     }
 });
 
 document.addEventListener('keydown', (event) => {
-    const { key } = event;
-    const active = document.activeElement;
-    const isInSearchBox = searchBox?.contains(active);
-
-    if (key === 'Escape') {
-        reset();
+    if (event.key === 'Escape' && modal?.classList.contains('active')) {
+        event.preventDefault();
+        closeSearch();
         return;
     }
 
-    if (!firstResult || !isInSearchBox) {
+    if (!modal?.classList.contains('active') || !firstResult || !searchBox.contains(document.activeElement)) {
         return;
     }
 
-    if (key === 'ArrowDown') {
+    if (event.key === 'ArrowDown') {
         event.preventDefault();
-
-        if (active === sInput) {
-            setActiveResult(firstResult.querySelector('.entry-link'));
-        } else if (active?.parentElement !== lastResult) {
-            setActiveResult(active?.parentElement?.nextElementSibling?.querySelector('.entry-link'));
+        if (document.activeElement === sInput) {
+            setActiveResult(firstResult.querySelector('.search-result-link'));
+        } else if (document.activeElement.closest('li') !== lastResult) {
+            setActiveResult(document.activeElement.closest('li')?.nextElementSibling?.querySelector('.search-result-link'));
         }
-    } else if (key === 'ArrowUp') {
+    } else if (event.key === 'ArrowUp') {
         event.preventDefault();
-
-        if (active?.parentElement === firstResult) {
-            setActiveResult(sInput);
-        } else if (active !== sInput) {
-            setActiveResult(active?.parentElement?.previousElementSibling?.querySelector('.entry-link'));
-        }
-    } else if (key === 'ArrowRight') {
-        if (active?.matches?.('.entry-link')) {
-            active.click();
+        if (document.activeElement.closest('li') === firstResult) {
+            sInput.focus();
+        } else if (document.activeElement !== sInput) {
+            setActiveResult(document.activeElement.closest('li')?.previousElementSibling?.querySelector('.search-result-link'));
         }
     }
 });
+
+if (triggers.some((trigger) => new URL(trigger.href, window.location.href).pathname === window.location.pathname)) {
+    openSearch();
+}
