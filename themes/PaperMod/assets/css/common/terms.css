@@ -17,14 +17,18 @@
     border: 1px solid transparent;
     border-radius: 999px;
     font-weight: 500;
-    transition-property: background-color, border-color;
+    transition-property: background-color;
     transition-duration: 120ms;
 }
 
-.terms-tags a:hover,
+.terms-tags a:hover {
+    background: color-mix(in srgb, var(--secondary) 6%, transparent);
+}
+
 .terms-tags a:focus-visible {
     background: color-mix(in srgb, var(--secondary) 6%, transparent);
-    border-color: var(--border);
+    outline: 2px solid var(--secondary);
+    outline-offset: 2px;
 }
 
 .term-name {
