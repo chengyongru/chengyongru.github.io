@@ -155,6 +155,11 @@ details.toc .inner ul {
     list-style: none;
 }
 
+details.toc .inner > nav > ul,
+details.toc .inner > ul {
+    padding-inline-start: 1rem;
+}
+
 details.toc .inner li {
     margin: 0.25rem 0;
     padding: 0;
