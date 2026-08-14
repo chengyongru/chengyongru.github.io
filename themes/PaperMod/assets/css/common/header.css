@@ -150,6 +150,12 @@ html.theme-transition .theme-toggle svg {
     min-height: 0;
 }
 
+@media screen and (max-width: 1199px) {
+    .header-nav > .logo-switches {
+        position: absolute;
+    }
+}
+
 @media screen and (max-width: 600px) {
     .header-nav {
         display: grid;
