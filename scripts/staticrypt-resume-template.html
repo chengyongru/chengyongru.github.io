@@ -1,0 +1,269 @@
+<!doctype html>
+<!--
+  Custom password prompt for StatiCrypt.
+  Encryption and decryption are provided by StatiCrypt:
+  https://github.com/robinmoisson/staticrypt (MIT License).
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="expires" content="0">
+  <title>/*[|template_title|]*/0</title>
+  <style>
+    @font-face {
+      font-family: "Nothing You Could Do";
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url("/fonts/nothing-you-could-do-latin.woff2") format("woff2");
+    }
+
+    :root {
+      --theme: #fff;
+      --primary: #1e1e1e;
+      --secondary: #6c6c6c;
+      --surface: #f5f5f5;
+      --border: #eee;
+      color-scheme: light;
+    }
+
+    :root[data-theme="dark"] {
+      --theme: #1d1e20;
+      --primary: #dadadb;
+      --secondary: #9b9c9d;
+      --surface: #2e2e33;
+      --border: #333;
+      color-scheme: dark;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--primary);
+      background: var(--theme);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { color: inherit; font: inherit; }
+    .hidden { display: none !important; }
+
+    .unlock-header {
+      display: flex;
+      align-items: center;
+      max-width: 1072px;
+      min-height: 60px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .unlock-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .unlock-brand {
+      color: var(--primary);
+      font-family: "Nothing You Could Do", cursive;
+      font-size: 24px;
+      text-decoration: none;
+    }
+
+    .unlock-main {
+      display: grid;
+      min-height: calc(100vh - 60px);
+      padding: 24px;
+      place-items: center;
+    }
+
+    .unlock-panel {
+      width: min(100%, 390px);
+      margin-top: -60px;
+    }
+
+    .unlock-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .unlock-field {
+      position: relative;
+    }
+
+    .unlock-input {
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 54px 12px 14px;
+      color: var(--primary);
+      background: var(--surface);
+      border: 0;
+      border-radius: 8px;
+      outline: 0;
+      transition: background-color 120ms ease;
+    }
+
+    .unlock-input:focus-visible {
+      background: color-mix(in srgb, var(--surface) 94%, var(--secondary));
+    }
+
+    .unlock-error {
+      margin: 9px 0 0;
+      color: var(--secondary);
+      font-size: 0.84rem;
+    }
+
+    .unlock-error:empty { display: none; }
+
+    .unlock-button {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      display: grid;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      place-items: center;
+      color: var(--secondary);
+      background: transparent;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .unlock-button:hover { color: var(--primary); }
+
+    .unlock-button:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 4px;
+    }
+
+    .unlock-button:disabled { cursor: wait; opacity: 0.55; }
+
+    .unlock-loading {
+      display: grid;
+      min-height: 100vh;
+      place-items: center;
+    }
+
+    .unlock-spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--secondary);
+      border-radius: 50%;
+      animation: unlock-spin 700ms linear infinite;
+    }
+
+    @keyframes unlock-spin { to { transform: rotate(1turn); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .unlock-spinner { animation-duration: 1.5s; }
+    }
+  </style>
+  <script>
+    (() => {
+      const savedTheme = localStorage.getItem("pref-theme");
+      const theme = savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+</head>
+<body>
+  <div id="staticrypt_loading" class="unlock-loading" aria-label="Loading">
+    <span class="unlock-spinner" aria-hidden="true"></span>
+  </div>
+
+  <div id="staticrypt_content" class="hidden">
+    <header class="unlock-header">
+      <span class="unlock-logo">
+        <a class="unlock-brand" href="/">Cheng Yongru</a>
+        <span aria-hidden="true">🤔</span>
+      </span>
+    </header>
+    <main class="unlock-main">
+      <section class="unlock-panel" aria-label="Resume access">
+        <form id="staticrypt-form" action="#" method="post" novalidate>
+          <label class="unlock-label" for="staticrypt-password">Password</label>
+          <div class="unlock-field">
+            <input
+              class="unlock-input"
+              id="staticrypt-password"
+              type="password"
+              name="password"
+              autocomplete="current-password"
+              aria-describedby="unlock-error"
+              placeholder="/*[|template_placeholder|]*/0"
+            >
+            <button class="unlock-button" id="unlock-button" type="submit" aria-label="/*[|template_button|]*/0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12h14"></path>
+                <path d="m13 6 6 6-6 6"></path>
+              </svg>
+            </button>
+          </div>
+          <p class="unlock-error" id="unlock-error" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const staticryptInitiator = /*[|js_staticrypt|]*/ 0;
+    const templateError = "/*[|template_error|]*/0";
+    const staticryptConfig = /*[|staticrypt_config|]*/ 0;
+    const templateConfig = {
+      rememberExpirationKey: "staticrypt_expiration",
+      rememberPassphraseKey: "staticrypt_passphrase",
+      replaceHtmlCallback: null,
+      clearLocalStorageCallback: null,
+    };
+    const staticrypt = staticryptInitiator.init(staticryptConfig, templateConfig);
+    const passwordInput = document.getElementById("staticrypt-password");
+    const errorMessage = document.getElementById("unlock-error");
+    const submitButton = document.getElementById("unlock-button");
+
+    window.addEventListener("load", async () => {
+      const { isSuccessful } = await staticrypt.handleDecryptOnLoad();
+      if (!isSuccessful) {
+        document.getElementById("staticrypt_loading").classList.add("hidden");
+        document.getElementById("staticrypt_content").classList.remove("hidden");
+        passwordInput.focus();
+      }
+    });
+
+    document.getElementById("staticrypt-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorMessage.textContent = "";
+      passwordInput.removeAttribute("aria-invalid");
+      submitButton.disabled = true;
+
+      try {
+        const { isSuccessful } = await staticrypt.handleDecryptionOfPage(passwordInput.value, false);
+        if (!isSuccessful) {
+          passwordInput.setAttribute("aria-invalid", "true");
+          errorMessage.textContent = templateError;
+          passwordInput.select();
+          passwordInput.focus();
+        }
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

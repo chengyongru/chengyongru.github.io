@@ -97,6 +97,10 @@ menu:
       name: "Posts"
       url: "/"
       weight: 10
+    - identifier: "resume"
+      name: "Resume"
+      url: "/resume/"
+      weight: 15
     - identifier: "tags"
       name: "Tags"
       url: "/tags/"
