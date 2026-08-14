@@ -130,11 +130,11 @@
 
             var width = container.offsetWidth;
             var height = Math.max(container.offsetHeight, 250);
-            var scale = 0.9;
+            var scale = 1;
             var repelForce = 0.5;
             var centerForce = 0.2;
             var linkDistance = 30;
-            var fontSize = 0.6;
+            var fontSize = 0.8;
             var opacityScale = 1;
             var focusOnHover = true;
             var enableRadial = true;
@@ -285,12 +285,11 @@
 
             function renderLabels() {
                 var defaultScale = 1 / scale;
-                var activeScale = defaultScale * 1.1;
                 for (var j = 0; j < nodeRenderData.length; j++) {
                     var renderedNode = nodeRenderData[j];
                     if (hoveredNodeId === renderedNode.simulationData.id) {
                         renderedNode.label.alpha = 1;
-                        renderedNode.label.scale.set(activeScale);
+                        renderedNode.label.scale.set(defaultScale);
                     } else {
                         renderedNode.label.scale.set(defaultScale);
                     }
@@ -323,6 +322,7 @@
                 label.anchor.set(0.5, 1.2);
                 label.alpha = 0;
                 label.scale.set(1 / scale);
+                label.roundPixels = true;
                 labelsContainer.addChild(label);
 
                 var gfx = new PIXI.Graphics();
@@ -451,7 +451,10 @@
                     var y = renderedNode.simulationData.y;
                     if (x != null && y != null) {
                         renderedNode.gfx.position.set(x + width / 2, y + height / 2);
-                        renderedNode.label.position.set(x + width / 2, y + height / 2);
+                        renderedNode.label.position.set(
+                            Math.round(x + width / 2),
+                            Math.round(y + height / 2),
+                        );
                     }
                 }
 
