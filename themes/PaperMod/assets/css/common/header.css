@@ -24,12 +24,18 @@
     flex-wrap: wrap;
 }
 
-@media screen and (min-width: 1024px) {
+@media screen and (min-width: 1200px) {
     .logo {
         position: fixed;
         top: 0;
         left: max(var(--gap), calc((100vw - var(--main-width) - var(--gap) * 2) / 2 - 210px));
         z-index: 10;
+    }
+}
+
+@media screen and (max-width: 1199px) {
+    .header-nav {
+        padding-inline-end: calc(var(--gap) + 2.5rem);
     }
 }
 
