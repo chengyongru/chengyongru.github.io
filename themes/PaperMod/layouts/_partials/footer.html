@@ -135,15 +135,23 @@
 <script>
     document.querySelectorAll('pre > code').forEach((codeblock) => {
         const container = codeblock.parentNode.parentNode;
+        const copyIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>';
+        const copiedIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>';
 
         const copybutton = document.createElement('button');
         copybutton.classList.add('copy-code');
-        copybutton.innerHTML = '{{- i18n "code_copy" | default "copy" }}';
+        copybutton.type = 'button';
+        copybutton.innerHTML = copyIcon;
+        copybutton.setAttribute('aria-label', 'Copy code');
+        let copyResetTimer;
 
         function copyingDone() {
-            copybutton.innerHTML = '{{- i18n "code_copied" | default "copied!" }}';
-            setTimeout(() => {
-                copybutton.innerHTML = '{{- i18n "code_copy" | default "copy" }}';
+            copybutton.innerHTML = copiedIcon;
+            copybutton.setAttribute('aria-label', 'Copied');
+            window.clearTimeout(copyResetTimer);
+            copyResetTimer = window.setTimeout(() => {
+                copybutton.innerHTML = copyIcon;
+                copybutton.setAttribute('aria-label', 'Copy code');
             }, 2000);
         }
 
