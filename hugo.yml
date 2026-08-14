@@ -1,0 +1,134 @@
+baseURL: "https://chengyongru.github.io/"
+languageCode: "en-us"
+defaultContentLanguage: "en"
+title: "CYR'ML"
+theme: ["PaperMod"]
+contentDir: ".hugo-content"
+staticDir: ["static", ".hugo-static"]
+publishDir: "dist"
+cleanDestinationDir: true
+timeZone: "Asia/Shanghai"
+enableRobotsTXT: true
+enableGitInfo: false
+hasCJKLanguage: true
+
+pagination:
+  pagerSize: 8
+
+minify:
+  disableXML: true
+  minifyOutput: true
+
+outputs:
+  home: ["HTML", "RSS", "JSON"]
+
+taxonomies:
+  tag: "tags"
+
+params:
+  env: "production"
+  title: "chengyongru"
+  description: "Notes on AI agents, machine learning, security, reverse engineering, and debugging."
+  keywords: ["AI Agent", "Machine Learning", "Security", "Reverse Engineering", "Debugging"]
+  author: "chengyongru"
+  DateFormat: "January 2, 2006"
+  defaultTheme: "auto"
+  disableThemeToggle: false
+  hideFooter: true
+  mainSections: ["blog"]
+
+  ShowReadingTime: true
+  ShowShareButtons: false
+  ShowPostNavLinks: true
+  ShowBreadCrumbs: true
+  ShowCodeCopyButtons: true
+  ShowWordCount: false
+  ShowRssButtonInSectionTermList: true
+  UseHugoToc: true
+  showtoc: true
+  tocopen: false
+  disableSpecial1stPost: true
+  disableScrollToTop: false
+
+  homeInfoParams:
+    Content: |
+      I build and maintain open-source AI agent systems, primarily through [**nanobot**](https://github.com/HKUDS/nanobot).
+
+  socialIcons:
+    - name: "x"
+      title: "X"
+      url: "https://x.com/chengyongru"
+    - name: "github"
+      title: "GitHub"
+      url: "https://github.com/chengyongru"
+    - name: "email"
+      title: "Email"
+      url: "mailto:chengyongru.ai@gmail.com"
+    - name: "rss"
+      title: "RSS"
+      url: "/index.xml"
+
+  assets:
+    favicon: "/favicon.svg"
+    favicon16x16: "/favicon.svg"
+    favicon32x32: "/favicon.svg"
+
+  label:
+    text: "Cheng Yongru"
+
+  cover:
+    hidden: true
+    hiddenInList: true
+    hiddenInSingle: true
+
+  fuseOpts:
+    isCaseSensitive: false
+    shouldSort: true
+    location: 0
+    distance: 1000
+    threshold: 0.35
+    minMatchCharLength: 2
+    limit: 20
+    keys: ["title", "permalink", "summary", "content"]
+
+menu:
+  main:
+    - identifier: "posts"
+      name: "Posts"
+      url: "/"
+      weight: 10
+    - identifier: "tags"
+      name: "Tags"
+      url: "/tags/"
+      weight: 20
+    - identifier: "archives"
+      name: "Archives"
+      url: "/archives/"
+      weight: 30
+    - identifier: "search"
+      name: "Search"
+      url: "/search/"
+      weight: 40
+
+markup:
+  goldmark:
+    parser:
+      attribute:
+        block: true
+    extensions:
+      passthrough:
+        enable: true
+        delimiters:
+          block: [["\\[", "\\]"], ["$$", "$$"]]
+          inline: [["\\(", "\\)"], ["$", "$"]]
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+    codeFences: true
+    guessSyntax: false
+    lineNos: false
+
+caches:
+  images:
+    dir: ":cacheDir/images"

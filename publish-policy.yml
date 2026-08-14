@@ -1,0 +1,19 @@
+# The content repository is a private-by-default source vault.
+# A page must pass every applicable rule before it is copied into Hugo's content tree.
+requirePublishFlag: true
+requireTags: true
+blockedTags:
+  - todo
+  - english
+alwaysPublishSlugs:
+  - index
+blockedDirs:
+  - clippings
+  - _obsidian
+  - .obsidian
+  - .trash
+  - .claude
+  - img
+  - src
+blockedFiles:
+  - claude

@@ -1,0 +1,24 @@
+# Hugo build inputs and output
+dist/
+.hugo-content/
+.hugo-static/
+.hugo-publication.json
+.hugo_build.lock
+resources/_gen/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local environment
+.env
+.env.production
+
+# Editor and agent state
+.vscode/
+.claude/
+CLAUDE.md
+
+# Operating system files
+.DS_Store
+Thumbs.db
