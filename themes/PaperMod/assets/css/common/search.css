@@ -110,12 +110,8 @@ body.search-modal-open {
     opacity: 1;
 }
 
-.search-field:focus-within {
-    border-bottom-color: var(--primary);
-}
-
 .search-field:has(input:focus-visible) {
-    box-shadow: inset 0 -1px 0 var(--primary);
+    border-bottom-color: var(--secondary);
 }
 
 .search-clear {
