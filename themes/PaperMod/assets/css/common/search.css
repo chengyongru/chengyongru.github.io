@@ -83,10 +83,7 @@ body.search-modal-open {
     min-height: 42px;
     padding: 0 2px;
     color: var(--secondary);
-    border-bottom: 1px solid var(--border);
     background: transparent;
-    transition-property: border-color;
-    transition-duration: 120ms;
     margin-inline-end: 40px;
 }
 
@@ -108,10 +105,6 @@ body.search-modal-open {
 .search-field input::placeholder {
     color: var(--secondary);
     opacity: 1;
-}
-
-.search-field:has(input:focus-visible) {
-    border-bottom-color: var(--secondary);
 }
 
 .search-clear {
