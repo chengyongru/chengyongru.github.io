@@ -1,0 +1,43 @@
+{{- $pages := where site.RegularPages "Type" "in" site.Params.mainSections }}
+{{- $nodes := slice }}
+{{- $links := slice }}
+
+{{- range $pages.ByTitle }}
+  {{- $nodes = $nodes | append (dict
+    "id" (printf "post:%s" .RelPermalink)
+    "text" .Title
+    "url" .RelPermalink
+    "kind" "post"
+  ) }}
+{{- end }}
+
+{{- range site.Taxonomies.tags.Alphabetical }}
+  {{- $termPage := site.GetPage (printf "/tags/%s" .Name) }}
+  {{- with $termPage }}
+    {{- $nodes = $nodes | append (dict
+      "id" (printf "tag:%s" .RelPermalink)
+      "text" (printf "#%s" .LinkTitle)
+      "url" .RelPermalink
+      "kind" "tag"
+    ) }}
+  {{- end }}
+{{- end }}
+
+{{- range $pages.ByTitle }}
+  {{- $source := printf "post:%s" .RelPermalink }}
+  {{- range .GetTerms "tags" }}
+    {{- $links = $links | append (dict
+      "source" $source
+      "target" (printf "tag:%s" .RelPermalink)
+    ) }}
+  {{- end }}
+{{- end }}
+
+<div class="global-graph-outer" role="dialog" aria-modal="true" aria-label="Global graph" aria-hidden="true">
+  <div id="quartz-graph" class="global-graph-container"></div>
+</div>
+<script id="graph-data" type="application/json">
+  {{- dict "nodes" $nodes "links" $links | jsonify | safeJS -}}
+</script>
+{{- $graphScript := resources.Get "js/quartz-graph.js" | resources.Minify | fingerprint }}
+<script defer src="{{ $graphScript.RelPermalink }}" integrity="{{ $graphScript.Data.Integrity }}"></script>

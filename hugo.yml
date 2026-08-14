@@ -97,8 +97,8 @@ menu:
       name: "Posts"
       url: "/"
       weight: 10
-    - identifier: "tags"
-      name: "Tags"
+    - identifier: "graph"
+      name: "Graph"
       url: "/tags/"
       weight: 20
     - identifier: "archives"
