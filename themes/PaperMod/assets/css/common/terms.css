@@ -1,19 +1,35 @@
 .terms-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 1em;
+    gap: 10px;
     margin-top: var(--content-gap);
 }
 
 .terms-tags li {
     display: inline-block;
-    font-weight: 500;
 }
 
 .terms-tags a {
-    display: block;
-    padding: 4px 10px;
-    background: var(--tertiary);
-    border-radius: var(--radius);
-    transition: transform 0.1s;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 5px 11px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-weight: 500;
+    transition-property: background-color, border-color;
+    transition-duration: 120ms;
+}
+
+.terms-tags a:hover,
+.terms-tags a:focus-visible {
+    background: color-mix(in srgb, var(--secondary) 6%, transparent);
+    border-color: var(--border);
+}
+
+.term-count {
+    color: var(--secondary);
+    font-size: 0.75em;
+    font-variant-numeric: tabular-nums;
+    font-weight: 400;
 }

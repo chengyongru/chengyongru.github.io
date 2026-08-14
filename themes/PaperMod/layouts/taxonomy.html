@@ -18,7 +18,10 @@
             {{- $count := .Count }}
             {{- with site.GetPage (printf "/%s/%s" $type $name) }}
             <li>
-                <a href="{{ .RelPermalink }}">{{ .LinkTitle }} <sup><strong><sup>{{ $count }}</sup></strong></sup> </a>
+                <a href="{{ .RelPermalink }}">
+                    <span class="term-name">{{ .LinkTitle }}</span>
+                    <span class="term-count" aria-label="{{ $count }} {{ cond (eq $count 1) "post" "posts" }}">{{ $count }}</span>
+                </a>
             </li>
         {{- end }}
     {{- end }}
