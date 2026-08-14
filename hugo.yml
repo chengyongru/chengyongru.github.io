@@ -97,18 +97,22 @@ menu:
       name: "Posts"
       url: "/"
       weight: 10
-    - identifier: "graph"
-      name: "Graph"
+    - identifier: "tags"
+      name: "Tags"
       url: "/tags/"
       weight: 20
+    - identifier: "graph"
+      name: "Graph"
+      url: "/graph/"
+      weight: 30
     - identifier: "archives"
       name: "Archives"
       url: "/archives/"
-      weight: 30
+      weight: 40
     - identifier: "search"
       name: "Search"
       url: "/search/"
-      weight: 40
+      weight: 50
 
 markup:
   goldmark:
