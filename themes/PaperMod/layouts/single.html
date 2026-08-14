@@ -57,6 +57,9 @@
     {{- if (and site.Params.ShowShareButtons (ne .Params.disableShare true)) }}
     {{- partial "share_icons.html" . -}}
     {{- end }}
+    <div class="post-social-icons" aria-label="Social links">
+      {{- partial "social_icons.html" (dict "align" "center") }}
+    </div>
   </footer>
 
   {{- if (.Param "comments") }}
