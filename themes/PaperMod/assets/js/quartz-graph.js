@@ -134,7 +134,7 @@
             var repelForce = 0.5;
             var centerForce = 0.2;
             var linkDistance = 30;
-            var fontSize = 0.8;
+            var fontSize = 18;
             var opacityScale = 1;
             var focusOnHover = true;
             var enableRadial = true;
@@ -316,7 +316,7 @@
                 var color = nodeColor(graphNode);
                 var label = new PIXI.Text({
                     text: graphNode.text,
-                    style: { fontSize: fontSize * 15, fill: dark, fontFamily: bodyFont },
+                    style: { fontSize: fontSize, fill: dark, fontFamily: bodyFont },
                     resolution: window.devicePixelRatio * 4,
                 });
                 label.anchor.set(0.5, 1.2);
