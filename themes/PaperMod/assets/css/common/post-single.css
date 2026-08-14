@@ -208,34 +208,10 @@ details.toc .inner a:hover {
     align-items: center;
 }
 
-.post-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.post-tags li {
-    display: inline-block;
-}
-
-.post-tags a,
 .share-buttons {
     border-radius: var(--radius);
     background: var(--code-bg);
     border: 1px solid var(--border);
-}
-
-.post-tags a {
-    display: block;
-    padding: 0 14px;
-    color: var(--secondary);
-    font-size: 14px;
-    line-height: 34px;
-    background: var(--code-bg);
-}
-
-.post-tags a:hover {
-    background: var(--border);
 }
 
 .share-buttons {

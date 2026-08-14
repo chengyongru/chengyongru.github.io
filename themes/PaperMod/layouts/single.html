@@ -46,9 +46,9 @@
 
   <footer class="post-footer">
     {{- $tags := .Language.Params.Taxonomies.tag | default "tags" }}
-    <ul class="post-tags">
+    <ul class="post-tags terms-tags">
       {{- range ($.GetTerms $tags) }}
-      <li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></li>
+      <li><a href="{{ .RelPermalink }}"><span class="term-name">{{ .LinkTitle }}</span></a></li>
       {{- end }}
     </ul>
     {{- if (.Param "ShowPostNavLinks") }}
