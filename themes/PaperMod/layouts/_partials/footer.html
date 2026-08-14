@@ -4,7 +4,7 @@
         {{- if site.Copyright }}
         <span>{{ site.Copyright | markdownify }}</span>
         {{- else }}
-        <span>&copy; {{ now.Year }} <a href="{{ "" | absLangURL }}">{{ site.Title }}</a></span>
+        <span>&copy; {{ now.Year }} <a href="{{ "" | relLangURL }}">{{ site.Title }}</a></span>
         {{- end }}
         {{- print " · "}}
     {{- end }}

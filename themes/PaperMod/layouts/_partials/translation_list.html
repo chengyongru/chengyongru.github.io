@@ -8,7 +8,7 @@
     <ul class="i18n_list">
         {{- range .Translations }}
         <li>
-            <a href="{{ .Permalink }}">
+            <a href="{{ .RelPermalink }}">
                 {{- if (and site.Params.displayFullLangName (.Language.LanguageName)) }}
                 {{- .Language.LanguageName | emojify -}}
                 {{- else }}
