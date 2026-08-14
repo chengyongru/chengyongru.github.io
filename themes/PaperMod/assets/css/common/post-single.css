@@ -208,8 +208,7 @@ details.toc .inner a:hover {
 }
 
 .post-tags a,
-.share-buttons,
-.paginav {
+.share-buttons {
     border-radius: var(--radius);
     background: var(--code-bg);
     border: 1px solid var(--border);
@@ -224,8 +223,7 @@ details.toc .inner a:hover {
     background: var(--code-bg);
 }
 
-.post-tags a:hover,
-.paginav a:hover {
+.post-tags a:hover {
     background: var(--border);
 }
 
@@ -248,37 +246,46 @@ details.toc .inner a:hover {
 
 .paginav {
     display: flex;
-    line-height: 1.2;
-}
-
-.paginav .title {
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    font-size: 0.8rem;
-    color: var(--secondary);
+    align-items: center;
+    justify-content: space-between;
+    margin: var(--gap) 0;
 }
 
 .paginav a {
-    width: 50%;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.8rem;
-    border-radius: var(--radius);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    color: var(--secondary);
+    border-radius: 50%;
+    transition-property: color, background-color;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
-.paginav span:hover:not(.title) {
-    text-underline-offset: 0.2rem;
-    text-decoration: underline;
+.paginav a:hover {
+    color: var(--primary);
+    background: var(--code-bg);
+}
+
+.paginav a:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+.paginav svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .paginav .next {
     margin-inline-start: auto;
-    text-align: right;
-}
-
-[dir="rtl"] .paginav .next {
-    text-align: left;
 }
 
 h1>a>svg {
