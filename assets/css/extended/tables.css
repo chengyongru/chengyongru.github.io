@@ -1,0 +1,96 @@
+/* Editorial Markdown tables: quiet rules, no card-like frame, and full-width columns. */
+.md-content table:not(.highlighttable, .highlight table, .gist .highlight) {
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+    margin-block: var(--content-gap);
+    font-size: calc(1em - 2px);
+    position: relative;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    touch-action: pan-x pan-y;
+    border: 0;
+    border-collapse: collapse;
+    border-spacing: 0;
+    border-radius: 0;
+}
+
+.md-content table:not(.highlighttable, .highlight table, .gist .highlight) th,
+.md-content table:not(.highlighttable, .highlight table, .gist .highlight) td {
+    min-width: 0;
+    padding: 10px 12px;
+    line-height: 1.55;
+    text-align: start;
+    vertical-align: top;
+    white-space: normal;
+    word-break: normal;
+    border: 0;
+    border-block-end: 1px solid var(--border);
+}
+
+.md-content table:not(.highlighttable, .highlight table, .gist .highlight) tr > :first-child {
+    padding-inline-start: 0;
+}
+
+.md-content table:not(.highlighttable, .highlight table, .gist .highlight) tr > :last-child {
+    padding-inline-end: 0;
+}
+
+.md-content table:not(.highlighttable, .highlight table, .gist .highlight) thead tr > :last-child {
+    padding-inline-end: 36px;
+}
+
+.md-content table:not(.highlighttable, .highlight table, .gist .highlight) thead th {
+    min-width: max-content;
+    white-space: nowrap;
+    border-block-end-color: var(--tertiary);
+}
+
+.md-content table:not(.highlighttable, .highlight table, .gist .highlight) tbody tr:last-child > td {
+    border-block-end: 0;
+}
+
+.table-copy {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    z-index: 1;
+    display: grid;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    place-items: center;
+    color: var(--secondary);
+    background: transparent;
+    border: 0;
+    border-radius: calc(var(--radius) - 2px);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition-property: color, background-color, opacity;
+    transition-duration: 120ms;
+}
+
+.md-content table:not(.highlighttable, .highlight table, .gist .highlight):hover > .table-copy,
+.md-content table:not(.highlighttable, .highlight table, .gist .highlight):focus-within > .table-copy,
+.table-copy:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.table-copy:hover {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--secondary) 8%, transparent);
+}
+
+.table-copy:focus-visible {
+    outline: 2px solid var(--secondary);
+    outline-offset: 2px;
+}
+
+@media (hover: none) {
+    .table-copy {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}

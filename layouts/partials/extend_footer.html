@@ -1,0 +1,179 @@
+{{- if hugo.IsServer -}}
+<script>
+    (() => {
+        const versionUrl = new URL('/.hugo-preview-version', document.baseURI);
+        let version;
+
+        const pollPreviewVersion = async () => {
+            try {
+                const response = await fetch(`${versionUrl}?t=${Date.now()}`, {
+                    cache: 'no-store',
+                });
+                if (!response.ok) {
+                    throw new Error('Preview version unavailable');
+                }
+
+                const nextVersion = await response.text();
+                if (version !== undefined && nextVersion !== version) {
+                    window.location.reload();
+                    return;
+                }
+                version = nextVersion;
+            } catch (error) {
+                // The preview server may be restarting after a route change.
+            }
+
+            window.setTimeout(pollPreviewVersion, 1000);
+        };
+
+        pollPreviewVersion();
+    })();
+</script>
+{{- end -}}
+{{- if and (eq .Kind "page") (ne .Layout "archives") (ne .Layout "search") -}}
+<script>
+    (() => {
+        const copyIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>';
+        const copiedIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>';
+
+        const copyText = async (text) => {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return;
+            }
+
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            const copied = document.execCommand('copy');
+            textarea.remove();
+            if (!copied) {
+                throw new Error('Copy failed');
+            }
+        };
+
+        const tableText = (table) => Array.from(table.rows)
+            .map((row) => Array.from(row.cells)
+                .map((cell) => cell.innerText.replace(/\s+/g, ' ').trim())
+                .join('\t'))
+            .join('\n');
+
+        document.querySelectorAll('.post-content.md-content table').forEach((table) => {
+            if (table.classList.contains('highlighttable') || table.closest('.highlight, .gist')) {
+                return;
+            }
+
+            const button = document.createElement('button');
+            button.className = 'table-copy';
+            button.type = 'button';
+            button.innerHTML = copyIcon;
+            button.setAttribute('aria-label', 'Copy table');
+            button.title = 'Copy table';
+
+            let resetTimer;
+            button.addEventListener('click', async () => {
+                try {
+                    await copyText(tableText(table));
+                    button.innerHTML = copiedIcon;
+                    button.setAttribute('aria-label', 'Copied');
+                    button.title = 'Copied';
+                    window.clearTimeout(resetTimer);
+                    resetTimer = window.setTimeout(() => {
+                        button.innerHTML = copyIcon;
+                        button.setAttribute('aria-label', 'Copy table');
+                        button.title = 'Copy table';
+                    }, 2000);
+                } catch (error) {
+                    button.setAttribute('aria-label', 'Copy failed');
+                    button.title = 'Copy failed';
+                }
+            });
+
+            table.appendChild(button);
+        });
+    })();
+</script>
+<script>
+    (() => {
+        const footnotes = document.querySelector('.post-content.md-content .footnotes');
+        if (!footnotes) {
+            return;
+        }
+
+        const labels = {
+            'arxiv.org': 'arXiv',
+            'github.com': 'GitHub',
+            'openai.com': 'OpenAI',
+        };
+        const entries = new Map(
+            Array.from(footnotes.querySelectorAll('ol > li[id]')).map((item) => [item.id, item])
+        );
+        const enhanced = new Set();
+
+        const fallbackIcon = () => {
+            const icon = document.createElement('span');
+            icon.className = 'source-chip__icon source-chip__icon--fallback';
+            icon.setAttribute('aria-hidden', 'true');
+            icon.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.25 9.75 9.75 6.25"></path><path d="M5 11H4a3 3 0 0 1 0-6h3"></path><path d="M11 5h1a3 3 0 0 1 0 6H9"></path></svg>';
+            return icon;
+        };
+
+        const sourceIcon = (url) => {
+            const icon = document.createElement('img');
+            icon.className = 'source-chip__icon';
+            icon.src = `${url.origin}/favicon.ico`;
+            icon.alt = '';
+            icon.width = 11;
+            icon.height = 11;
+            icon.loading = 'lazy';
+            icon.referrerPolicy = 'no-referrer';
+            icon.addEventListener('error', () => icon.replaceWith(fallbackIcon()), { once: true });
+            return icon;
+        };
+
+        document.querySelectorAll('.post-content.md-content sup[id^="fnref:"] a.footnote-ref').forEach((reference) => {
+            const target = reference.getAttribute('href');
+            const entry = target ? entries.get(target.slice(1)) : null;
+            const source = entry?.querySelector('a[href^="http://"], a[href^="https://"]');
+            const citation = reference.closest('sup');
+            if (!entry || !source || !citation) {
+                return;
+            }
+
+            const url = new URL(source.href, document.baseURI);
+            const host = url.hostname.replace(/^www\./, '').toLowerCase();
+            const label = labels[host] || host.split('.')[0];
+
+            if (enhanced.has(entry.id)) {
+                citation.remove();
+                return;
+            }
+            enhanced.add(entry.id);
+
+            const chip = document.createElement('a');
+            chip.className = 'source-chip';
+            chip.href = url.href;
+            chip.target = '_blank';
+            chip.rel = 'noopener noreferrer';
+            chip.setAttribute('aria-label', `Open ${label} source`);
+            chip.title = `Open ${label} source`;
+            chip.append(sourceIcon(url));
+
+            const text = document.createElement('span');
+            text.textContent = label;
+            chip.append(text);
+            citation.replaceWith(chip);
+            entry.hidden = true;
+        });
+
+        const entriesList = Array.from(entries.values());
+        if (entriesList.length > 0 && entriesList.every((entry) => entry.hidden)) {
+            footnotes.hidden = true;
+        }
+    })();
+</script>
+{{- end -}}

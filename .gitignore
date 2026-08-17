@@ -5,6 +5,7 @@ dist/
 .hugo-publication.json
 .hugo_build.lock
 resources/_gen/
+static/.hugo-preview-version
 
 # Python cache
 __pycache__/

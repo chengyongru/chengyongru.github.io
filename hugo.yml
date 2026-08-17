@@ -17,7 +17,9 @@ pagination:
 
 minify:
   disableXML: true
-  minifyOutput: true
+  # Keep Hugo's live-reload injection available during local development.
+  # CI passes --minify explicitly when building the production artifact.
+  minifyOutput: false
 
 outputs:
   home: ["HTML", "RSS", "JSON"]

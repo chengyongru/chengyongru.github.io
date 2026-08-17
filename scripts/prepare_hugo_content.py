@@ -338,8 +338,17 @@ def safe_generated_dir(root: Path, path: Path, expected_name: str) -> Path:
 def reset_generated_dir(root: Path, path: Path, expected_name: str) -> Path:
     resolved = safe_generated_dir(root, path, expected_name)
     if resolved.exists():
-        shutil.rmtree(resolved)
-    resolved.mkdir(parents=True)
+        if not resolved.is_dir():
+            raise ValueError(f"Refusing generated path that is not a directory: {resolved}")
+        # Keep the watched directory itself alive. Replacing it breaks Hugo's
+        # filesystem watcher on some platforms, especially Windows.
+        for child in resolved.iterdir():
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+    else:
+        resolved.mkdir(parents=True)
     return resolved
 
 

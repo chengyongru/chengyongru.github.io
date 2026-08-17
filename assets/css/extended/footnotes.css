@@ -1,0 +1,57 @@
+/* Compact inline source chips keep URL footnotes useful without competing with the prose. */
+.source-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    width: fit-content;
+    min-height: 17px;
+    padding: 2px 6px 2px 5px;
+    color: var(--secondary);
+    background: color-mix(in srgb, var(--code-bg) 45%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 400;
+    line-height: 1.1;
+    white-space: nowrap;
+    vertical-align: middle;
+    margin-inline-start: 0.25rem;
+    opacity: 0.7;
+    text-decoration: none !important;
+    transition-property: color, background-color, opacity;
+    transition-duration: 120ms;
+}
+
+.source-chip:hover,
+.source-chip:focus-visible {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--code-bg) 85%, transparent);
+    opacity: 1;
+}
+
+.source-chip:focus-visible {
+    outline: 2px solid var(--secondary);
+    outline-offset: 2px;
+}
+
+.md-content .source-chip__icon {
+    display: block;
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    max-width: none;
+    margin: 0 !important;
+    object-fit: contain;
+    border-radius: 2px;
+}
+
+.md-content .source-chip__icon--fallback {
+    display: grid;
+    place-items: center;
+    color: currentColor;
+}
+
+.md-content .source-chip__icon--fallback svg {
+    width: 10px;
+    height: 10px;
+}
