@@ -56,11 +56,27 @@
             }
         };
 
-        const tableText = (table) => Array.from(table.rows)
-            .map((row) => Array.from(row.cells)
-                .map((cell) => cell.innerText.replace(/\s+/g, ' ').trim())
-                .join('\t'))
-            .join('\n');
+        const tableMarkdown = (table) => {
+            const rows = Array.from(table.rows).map((row) => Array.from(row.cells));
+            if (rows.length === 0) {
+                return '';
+            }
+
+            const columnCount = Math.max(...rows.map((row) => row.length));
+            const normalizeRow = (row) => Array.from({ length: columnCount }, (_, index) => {
+                const cell = row[index];
+                return cell
+                    ? cell.innerText.replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|')
+                    : '';
+            });
+            const header = normalizeRow(rows[0]);
+            const separator = Array.from({ length: columnCount }, () => '---');
+            const body = rows.slice(1).map(normalizeRow);
+
+            return [header, separator, ...body]
+                .map((row) => `| ${row.join(' | ')} |`)
+                .join('\n');
+        };
 
         document.querySelectorAll('.post-content.md-content table').forEach((table) => {
             if (table.classList.contains('highlighttable') || table.closest('.highlight, .gist')) {
@@ -77,7 +93,7 @@
             let resetTimer;
             button.addEventListener('click', async () => {
                 try {
-                    await copyText(tableText(table));
+                    await copyText(tableMarkdown(table));
                     button.innerHTML = copiedIcon;
                     button.setAttribute('aria-label', 'Copied');
                     button.title = 'Copied';
