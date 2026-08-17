@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow, noarchive">
   <title>{{ .Title }} | {{ site.Title }}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ site.Params.assets.favicon | default "/favicon.svg" | relURL }}">
   <style>
     @font-face {
       font-family: "Nothing You Could Do";
@@ -217,6 +218,12 @@
 
     .resume-entry-header p { margin-bottom: 0; }
 
+    .resume-content .resume-entry-scope {
+      margin: 7px 0 9px;
+      color: var(--secondary);
+      font-size: 0.96rem;
+    }
+
     .resume-content p { margin: 10px 0; }
 
     .resume-content ul {
@@ -321,6 +328,14 @@
       .resume-content h2 { margin: 14pt 0 5pt; }
       .resume-content h3 { margin-top: 9pt; }
       .resume-entry-header p { margin-top: 2pt; }
+      .resume-content .resume-entry-scope { margin-block: 3pt 4pt; }
+      .resume-entry-header,
+      .resume-entry-scope,
+      .resume-highlights li:first-child { break-after: avoid; }
+      .resume-entry-break-before {
+        break-before: page;
+        page-break-before: always;
+      }
       .resume-content p,
       .resume-content ul { margin-block: 5pt; }
       .resume-content li { margin-block: 2pt; }
