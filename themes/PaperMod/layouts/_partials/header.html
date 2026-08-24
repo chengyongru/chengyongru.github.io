@@ -3,7 +3,10 @@
         <div class="logo">
             {{- $label_text := (site.Params.label.text | default site.Title) }}
             {{- if site.Title }}
-            <a href="{{ "" | relLangURL }}" accesskey="h" title="{{ $label_text }} (Alt + H)">
+            <a href="{{ if .IsHome }}{{ "/resume/" | relURL }}{{ else }}{{ "" | relLangURL }}{{ end }}"
+                {{- if .IsHome }} aria-label="{{ $label_text }} — View resume" title="View resume"
+                {{- else }} accesskey="h" title="{{ $label_text }} (Alt + H)"
+                {{- end }}>
                 {{- if site.Params.label.icon }}
                 {{- $img := resources.Get site.Params.label.icon }}
                 {{- if $img }}

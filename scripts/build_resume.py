@@ -19,13 +19,13 @@ STATICRYPT_VERSION = "3.5.4"
 RESUME_VARIANTS = {
     "en": {
         "staged": Path("resume.md"),
-        "rendered": Path("resume/index.html"),
-        "destination": Path("static/resume/index.html"),
+        "rendered": Path("resume/en/index.html"),
+        "destination": Path("static/resume/en/index.html"),
     },
     "zh": {
         "staged": Path("resume-zh.md"),
-        "rendered": Path("resume/zh/index.html"),
-        "destination": Path("static/resume/zh/index.html"),
+        "rendered": Path("resume/index.html"),
+        "destination": Path("static/resume/index.html"),
     },
 }
 
