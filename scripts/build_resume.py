@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -28,6 +29,22 @@ RESUME_VARIANTS = {
         "destination": Path("static/resume/index.html"),
     },
 }
+
+
+RESUME_ASSETS = (
+    (
+        re.compile(r"/assets/css/stylesheet\.[0-9a-f]+\.css"),
+        "/resume-assets/stylesheet.css",
+    ),
+    (
+        re.compile(r"/assets/js/search\.[0-9a-f]+\.js"),
+        "/resume-assets/search.js",
+    ),
+    (
+        re.compile(r"/js/quartz-graph\.min\.[0-9a-f]+\.js"),
+        "/resume-assets/quartz-graph.js",
+    ),
+)
 
 
 def run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> None:
@@ -60,6 +77,32 @@ def stage_resumes(root: Path, sources: dict[str, Path]) -> list[Path]:
         shutil.copy2(source, staged)
         staged_files.append(staged)
     return staged_files
+
+
+def stabilize_resume_assets(
+    root: Path, rendered_site: Path, rendered_resume: Path
+) -> None:
+    """Ship the rendered resume's fingerprinted assets at stable public URLs."""
+    html = rendered_resume.read_text(encoding="utf-8")
+
+    for pattern, stable_url in RESUME_ASSETS:
+        match = pattern.search(html)
+        if match is None:
+            raise ValueError(
+                f"Rendered resume does not reference expected asset: {pattern.pattern}"
+            )
+
+        fingerprinted_url = match.group(0)
+        source = rendered_site / fingerprinted_url.lstrip("/")
+        if not source.is_file():
+            raise FileNotFoundError(f"Rendered resume asset not found: {source}")
+
+        destination = root / "static" / stable_url.lstrip("/")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        html = html.replace(fingerprinted_url, stable_url)
+
+    rendered_resume.write_text(html, encoding="utf-8", newline="\n")
 
 
 def encrypt_resume(
@@ -138,6 +181,8 @@ def build_resumes(
                 rendered_resume = rendered_site / variant["rendered"]
                 if not rendered_resume.is_file():
                     raise FileNotFoundError(f"Hugo did not render {rendered_resume}")
+
+                stabilize_resume_assets(root, rendered_site, rendered_resume)
 
                 encrypted_resume = encrypt_resume(
                     root,
