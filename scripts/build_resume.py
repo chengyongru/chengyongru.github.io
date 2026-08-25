@@ -46,6 +46,8 @@ RESUME_ASSETS = (
     ),
 )
 
+SUBRESOURCE_INTEGRITY = re.compile(r'\s+integrity="sha(?:256|384|512)-[^"]+"')
+
 
 def run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> None:
     subprocess.run(command, cwd=cwd, env=env, check=True)
@@ -102,6 +104,9 @@ def stabilize_resume_assets(
         shutil.copy2(source, destination)
         html = html.replace(fingerprinted_url, stable_url)
 
+    # The stable copies are normalized by Git on checkout, so their bytes may
+    # differ across platforms even though their CSS or JavaScript is equivalent.
+    html = SUBRESOURCE_INTEGRITY.sub("", html)
     rendered_resume.write_text(html, encoding="utf-8", newline="\n")
 
 
