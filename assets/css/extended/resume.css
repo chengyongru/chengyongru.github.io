@@ -631,12 +631,12 @@ body:has(.resume-paper) .logo {
 
     .resume-paper-zh .resume-section,
     .resume-paper-zh .resume-section + .resume-section {
-        margin-top: 9pt;
+        margin-top: 11pt;
     }
 
     .resume-paper-zh .resume-section-heading,
     .resume-paper-zh .resume-section-heading h2 {
-        margin-bottom: 4.5pt;
+        margin-bottom: 5.5pt;
     }
 
     .resume-paper-zh .resume-entry-scope,
@@ -645,19 +645,19 @@ body:has(.resume-paper) .logo {
     .resume-paper-zh .resume-entry-compact .resume-detail-list dd,
     .resume-paper-zh .resume-skill-grid h3,
     .resume-paper-zh .resume-skill-grid p {
-        line-height: 1.38;
+        line-height: 1.5;
     }
 
     .resume-paper-zh .resume-entry + .resume-entry {
-        margin-top: 6pt;
+        margin-top: 8pt;
     }
 
     .resume-paper-zh .resume-highlights {
-        margin-top: 2.5pt;
+        margin-top: 3pt;
     }
 
     .resume-paper-zh .resume-highlights li + li {
-        margin-top: 1.5pt;
+        margin-top: 2pt;
     }
 
     .resume-page-break-before {
