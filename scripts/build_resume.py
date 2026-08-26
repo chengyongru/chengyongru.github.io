@@ -15,6 +15,7 @@ from pathlib import Path
 
 
 STATICRYPT_VERSION = "3.5.4"
+RESUME_SALT = "9b3c805db46d1ae1a7c9eea5b3d3156b"
 
 
 RESUME_VARIANTS = {
@@ -130,7 +131,9 @@ def encrypt_resume(
             "--template",
             str(template),
             "--remember",
-            "false",
+            "0",
+            "--salt",
+            RESUME_SALT,
             "--config",
             "false",
             "--short",

@@ -253,7 +253,10 @@
       submitButton.disabled = true;
 
       try {
-        const { isSuccessful } = await staticrypt.handleDecryptionOfPage(passwordInput.value, false);
+        const { isSuccessful } = await staticrypt.handleDecryptionOfPage(
+          passwordInput.value,
+          staticryptConfig.isRememberEnabled,
+        );
         if (!isSuccessful) {
           passwordInput.setAttribute("aria-invalid", "true");
           errorMessage.textContent = templateError;

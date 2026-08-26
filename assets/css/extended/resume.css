@@ -43,6 +43,10 @@
     padding: 0;
 }
 
+body:has(.resume-paper) .logo {
+    position: static;
+}
+
 .resume-paper {
     --resume-paper: #fff;
     --resume-ink: #111;
@@ -61,6 +65,8 @@
     font-size: 14px;
     font-synthesis: none;
     line-height: 1.28;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .resume-paper-zh {
@@ -182,6 +188,12 @@
     color: var(--resume-ink);
 }
 
+.resume-contact-item {
+    display: inline-flex;
+    gap: 0.42rem;
+    white-space: nowrap;
+}
+
 .resume-content {
     min-width: 0;
 }
@@ -226,14 +238,14 @@
 
 .resume-summary p {
     max-width: none;
-    margin: 0 17px;
+    margin: 0 10px;
     font-size: 0.84rem;
     line-height: 1.32;
 }
 
 .resume-entry {
     min-width: 0;
-    margin: 0 17px;
+    margin: 0 10px;
     padding: 0;
     break-inside: avoid;
 }
@@ -292,7 +304,7 @@
 
 .resume-highlights {
     margin: 2px 0 0;
-    padding-left: 1.55rem;
+    padding-left: 1.35rem;
     color: var(--resume-ink);
     font-size: 0.81rem;
     line-height: 1.27;
@@ -302,7 +314,8 @@
 .resume-highlights li {
     display: list-item;
     margin: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .resume-highlights li + li {
@@ -343,7 +356,8 @@
     color: var(--resume-ink);
     font-size: 0.81rem;
     line-height: 1.27;
-    overflow-wrap: anywhere;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .resume-detail-list > div > dd:not(:has(ul)),
@@ -384,7 +398,7 @@
 .resume-skill-grid {
     display: grid;
     gap: 1px;
-    margin: 0 17px;
+    margin: 0 10px;
     padding: 0;
 }
 
@@ -420,7 +434,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: baseline;
     gap: 18px;
-    margin: 0 17px;
+    margin: 0 10px;
 }
 
 .resume-education-entry h3 {
