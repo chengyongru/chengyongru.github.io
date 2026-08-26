@@ -516,6 +516,10 @@ body:has(.resume-paper) .logo {
         margin: 0;
     }
 
+    body:has(.resume-paper) {
+        background: #fff;
+    }
+
     body:has(.resume-paper) .header,
     body:has(.resume-paper) .footer,
     body:has(.resume-paper) #top-link,
@@ -556,13 +560,13 @@ body:has(.resume-paper) .logo {
 
     .resume-section,
     .resume-section + .resume-section {
-        margin-top: 6pt;
+        margin-top: 6.5pt;
     }
 
     .resume-section-heading,
     .resume-section-heading h2,
     .resume-summary h2 {
-        margin-bottom: 3pt;
+        margin-bottom: 3.25pt;
     }
 
     .resume-section-heading h2,
@@ -579,11 +583,11 @@ body:has(.resume-paper) .logo {
     .resume-skill-grid h3,
     .resume-skill-grid p {
         font-size: 8.2pt;
-        line-height: 1.25;
+        line-height: 1.28;
     }
 
     .resume-entry + .resume-entry {
-        margin-top: 4pt;
+        margin-top: 4.5pt;
     }
 
     .resume-entry-header h3,
@@ -618,11 +622,42 @@ body:has(.resume-paper) .logo {
     }
 
     .resume-highlights {
-        margin-top: 1.5pt;
+        margin-top: 1.75pt;
     }
 
     .resume-highlights li + li {
-        margin-top: 0.75pt;
+        margin-top: 0.9pt;
+    }
+
+    .resume-paper-zh .resume-section,
+    .resume-paper-zh .resume-section + .resume-section {
+        margin-top: 9pt;
+    }
+
+    .resume-paper-zh .resume-section-heading,
+    .resume-paper-zh .resume-section-heading h2 {
+        margin-bottom: 4.5pt;
+    }
+
+    .resume-paper-zh .resume-entry-scope,
+    .resume-paper-zh .resume-highlights,
+    .resume-paper-zh .resume-detail-list dd,
+    .resume-paper-zh .resume-entry-compact .resume-detail-list dd,
+    .resume-paper-zh .resume-skill-grid h3,
+    .resume-paper-zh .resume-skill-grid p {
+        line-height: 1.38;
+    }
+
+    .resume-paper-zh .resume-entry + .resume-entry {
+        margin-top: 6pt;
+    }
+
+    .resume-paper-zh .resume-highlights {
+        margin-top: 2.5pt;
+    }
+
+    .resume-paper-zh .resume-highlights li + li {
+        margin-top: 1.5pt;
     }
 
     .resume-page-break-before {
