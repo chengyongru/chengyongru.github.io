@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import hashlib
 import os
 import re
 import shutil
@@ -103,7 +104,8 @@ def stabilize_resume_assets(
         destination = root / "static" / stable_url.lstrip("/")
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
-        html = html.replace(fingerprinted_url, stable_url)
+        asset_version = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+        html = html.replace(fingerprinted_url, f"{stable_url}?v={asset_version}")
 
     # The stable copies are normalized by Git on checkout, so their bytes may
     # differ across platforms even though their CSS or JavaScript is equivalent.

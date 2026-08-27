@@ -398,19 +398,19 @@ body:has(.resume-paper) .logo {
 .resume-skill-grid {
     display: grid;
     gap: 1px;
-    margin: 0 10px;
+    margin: 0;
     padding: 0;
 }
 
 .resume-skill-grid article {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 0.28rem;
+    display: block;
     min-width: 0;
 }
 
 .resume-skill-grid h3 {
+    display: inline;
     margin: 0;
+    margin-inline-end: 0.28rem;
     color: var(--resume-ink);
     font-family: inherit;
     font-size: 0.82rem;
@@ -423,6 +423,7 @@ body:has(.resume-paper) .logo {
 }
 
 .resume-skill-grid p {
+    display: inline;
     margin: 0;
     color: var(--resume-ink);
     font-size: 0.82rem;
@@ -504,10 +505,6 @@ body:has(.resume-paper) .logo {
         text-align: left;
     }
 
-    .resume-skill-grid article {
-        grid-template-columns: 1fr;
-        gap: 0;
-    }
 }
 
 @media print {
@@ -582,7 +579,7 @@ body:has(.resume-paper) .logo {
     .resume-entry-compact .resume-detail-list dd,
     .resume-skill-grid h3,
     .resume-skill-grid p {
-        font-size: 8.2pt;
+        font-size: 9pt;
         line-height: 1.28;
     }
 
