@@ -13,7 +13,7 @@
     <h1>{{ .Title }}</h1>
     <div class="resume-contact" aria-label="Contact links">
       <a href="mailto:chengyongru.ai@gmail.com">chengyongru.ai@gmail.com</a>
-      <span class="resume-contact-item"><span class="resume-contact-separator" aria-hidden="true">|</span><a href="tel:+8616601553962">+86 166 0155 3962</a></span>
+      {{ with .Params.resumePhoneLabel }}<span class="resume-contact-item"><span class="resume-contact-separator" aria-hidden="true">|</span><a href="tel:{{ $.Params.resumePhoneHref }}">{{ . }}</a></span>{{ end }}
       <span class="resume-contact-item"><span class="resume-contact-separator" aria-hidden="true">|</span><span>{{ if eq .Params.resumeLanguage "en" }}Beijing, China{{ else }}北京{{ end }}</span></span>
       <span class="resume-contact-item"><span class="resume-contact-separator" aria-hidden="true">|</span><a href="https://github.com/chengyongru">github.com/chengyongru</a></span>
       <span class="resume-contact-item"><span class="resume-contact-separator" aria-hidden="true">|</span><a href="https://chengyongru.github.io">chengyongru.github.io</a></span>
