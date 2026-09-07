@@ -26,6 +26,11 @@ jobs:
       HUGO_VERSION: 0.164.0
       TZ: Asia/Shanghai
     steps:
+      - name: Check content repository access
+        env:
+          GH_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        run: gh api repos/chengyongru/notebook --silent
+
       - name: Checkout source and content
         uses: actions/checkout@v7
         with:
