@@ -322,6 +322,11 @@ body:has(.resume-paper) .logo {
     margin-top: 1px;
 }
 
+.resume-highlights li,
+.resume-entry-scope {
+    text-wrap: pretty;
+}
+
 .resume-page-break-before {
     margin-top: 24px;
 }
@@ -507,10 +512,40 @@ body:has(.resume-paper) .logo {
 
 }
 
+@media screen and (max-width: 700px) {
+    .resume-entry-scope,
+    .resume-highlights,
+    .resume-skill-grid h3,
+    .resume-skill-grid p {
+        font-size: 0.9375rem;
+        line-height: 1.5;
+    }
+
+    .resume-highlights li + li {
+        margin-top: 6px;
+    }
+
+    .resume-entry + .resume-entry {
+        margin-top: 16px;
+    }
+
+    .resume-contact-item {
+        max-width: 100%;
+    }
+
+    .resume-contact-separator {
+        display: none;
+    }
+
+    .resume-contact {
+        gap: 3px 12px;
+    }
+}
+
 @media print {
     @page resume {
         size: A4;
-        margin: 0;
+        margin: 11mm 12mm 10mm;
     }
 
     body:has(.resume-paper) {
@@ -536,10 +571,19 @@ body:has(.resume-paper) .logo {
         page: resume;
         width: 100%;
         min-height: 0;
-        padding: 11mm 12mm 10mm;
+        padding: 0;
         box-shadow: none;
         font-size: 9.5pt;
         line-height: 1.24;
+    }
+
+    .resume-section-heading,
+    .resume-entry-header {
+        break-after: avoid;
+    }
+
+    .resume-highlights li {
+        break-inside: avoid;
     }
 
     .resume-heading {

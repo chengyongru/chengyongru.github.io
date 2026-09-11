@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 
 
@@ -72,19 +73,16 @@ def read_password(environment_name: str) -> str:
     return password
 
 
-def stage_resumes(root: Path, sources: dict[str, Path]) -> list[Path]:
-    run([sys.executable, "scripts/prepare_hugo_content.py"], cwd=root)
-    staged_files: list[Path] = []
+def stage_resumes(content_dir: Path, sources: dict[str, Path]) -> None:
+    """Keep plaintext sources outside the running server's content tree."""
     for language, source in sources.items():
-        staged = root / ".hugo-content" / RESUME_VARIANTS[language]["staged"]
+        staged = content_dir / RESUME_VARIANTS[language]["staged"]
         staged.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, staged)
-        staged_files.append(staged)
-    return staged_files
 
 
 def stabilize_resume_assets(
-    root: Path, rendered_site: Path, rendered_resume: Path
+    static_output: Path, rendered_site: Path, rendered_resume: Path
 ) -> None:
     """Ship the rendered resume's fingerprinted assets at stable public URLs."""
     html = rendered_resume.read_text(encoding="utf-8")
@@ -101,7 +99,7 @@ def stabilize_resume_assets(
         if not source.is_file():
             raise FileNotFoundError(f"Rendered resume asset not found: {source}")
 
-        destination = root / "static" / stable_url.lstrip("/")
+        destination = static_output / stable_url.lstrip("/")
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
         asset_version = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
@@ -159,57 +157,83 @@ def encrypt_resume(
     return encrypted_resume
 
 
+def add_preview_refresh(path: Path, script: str, version: str) -> None:
+    html = path.read_text(encoding="utf-8")
+    hook = (
+        f'<meta name="resume-preview-version" content="{version}">\n'
+        f"<script>{script}</script>\n"
+    )
+    path.write_text(html.replace("</head>", hook + "</head>", 1), encoding="utf-8")
+
+
+def publish_file(source: Path, destination: Path) -> None:
+    """Replace each served file atomically so Hugo never reads a partial write."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as pending:
+        pending_path = Path(pending.name)
+    try:
+        shutil.copy2(source, pending_path)
+        pending_path.replace(destination)
+    finally:
+        pending_path.unlink(missing_ok=True)
+
+
 def build_resumes(
-    root: Path, sources: dict[str, Path], password: str
+    root: Path, sources: dict[str, Path], password: str, *, preview: bool = False
 ) -> list[Path]:
     template = root / "scripts" / "staticrypt-resume-template.html"
-    staged_files = stage_resumes(root, sources)
-    destinations: list[Path] = []
+    with tempfile.TemporaryDirectory(prefix="chengyongru-resume-") as temporary:
+        temporary_root = Path(temporary)
+        content_dir = temporary_root / "content"
+        rendered_site = temporary_root / "site"
+        static_output = temporary_root / "static"
+        stage_resumes(content_dir, sources)
+        hugo_environment = os.environ.copy()
+        hugo_environment["HUGO_MINIFY_MINIFYOUTPUT"] = "false"
+        hugo_environment["HUGO_RESOURCEDIR"] = str(temporary_root / "resources")
+        run(
+            [
+                os.environ.get("HUGO_BIN", "hugo"),
+                "--noBuildLock",
+                "--baseURL", "/",
+                "--contentDir", str(content_dir),
+                "--cacheDir", str(temporary_root / "cache"),
+                "--destination", str(rendered_site),
+            ],
+            cwd=root,
+            env=hugo_environment,
+        )
 
-    try:
-        with tempfile.TemporaryDirectory(prefix="chengyongru-resume-") as temporary:
-            temporary_root = Path(temporary)
-            rendered_site = temporary_root / "site"
-            encrypted = temporary_root / "encrypted"
-            hugo_environment = os.environ.copy()
-            hugo_environment["HUGO_MINIFY_MINIFYOUTPUT"] = "false"
-
-            run(
-                [
-                    "hugo",
-                    "--gc",
-                    "--baseURL",
-                    "/",
-                    "--destination",
-                    str(rendered_site),
-                ],
-                cwd=root,
-                env=hugo_environment,
+        preview_script = (
+            (root / "scripts" / "resume-preview.js").read_text(encoding="utf-8")
+            if preview else ""
+        )
+        version = uuid.uuid4().hex
+        for language, variant in RESUME_VARIANTS.items():
+            rendered_resume = rendered_site / variant["rendered"]
+            if not rendered_resume.is_file():
+                raise FileNotFoundError(f"Hugo did not render {rendered_resume}")
+            stabilize_resume_assets(static_output, rendered_site, rendered_resume)
+            if preview:
+                add_preview_refresh(rendered_resume, preview_script, version)
+            encrypted_resume = encrypt_resume(
+                root, rendered_resume, temporary_root / "encrypted" / language,
+                template, password,
             )
+            if preview:
+                add_preview_refresh(encrypted_resume, preview_script, version)
+            staged_output = temporary_root / variant["destination"]
+            staged_output.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(encrypted_resume, staged_output)
 
-            for language, variant in RESUME_VARIANTS.items():
-                rendered_resume = rendered_site / variant["rendered"]
-                if not rendered_resume.is_file():
-                    raise FileNotFoundError(f"Hugo did not render {rendered_resume}")
-
-                stabilize_resume_assets(root, rendered_site, rendered_resume)
-
-                encrypted_resume = encrypt_resume(
-                    root,
-                    rendered_resume,
-                    encrypted / language,
-                    template,
-                    password,
-                )
-                destination = root / variant["destination"]
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(encrypted_resume, destination)
-                destinations.append(destination)
-    finally:
-        for staged in staged_files:
-            staged.unlink(missing_ok=True)
-
-    return destinations
+        # Do not touch served assets or pages until both languages are encrypted.
+        for staged_output in sorted(
+            static_output.rglob("*"),
+            key=lambda path: (path.relative_to(static_output).parts[0] == "resume", path.as_posix()),
+        ):
+            if staged_output.is_file():
+                publish_file(staged_output, root / "static" / staged_output.relative_to(static_output))
+    return [root / variant["destination"] for variant in RESUME_VARIANTS.values()]
 
 
 def parse_args() -> argparse.Namespace:
@@ -231,6 +255,10 @@ def parse_args() -> argparse.Namespace:
         default="RESUME_PASSWORD",
         help="Environment variable containing the password; prompts when unset",
     )
+    parser.add_argument(
+        "--preview", action="store_true",
+        help="Automatically reload encrypted resume pages on localhost after rebuilds",
+    )
     return parser.parse_args()
 
 
@@ -245,7 +273,9 @@ def main() -> int:
         if not source.is_file():
             raise FileNotFoundError(f"Private resume source not found: {source}")
 
-    destinations = build_resumes(root, sources, read_password(args.password_env))
+    destinations = build_resumes(
+        root, sources, read_password(args.password_env), preview=args.preview
+    )
     for destination in destinations:
         print(f"Encrypted resume: {destination.relative_to(root)}")
     return 0

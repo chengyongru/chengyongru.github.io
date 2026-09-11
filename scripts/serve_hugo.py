@@ -4,12 +4,14 @@
 Hugo reads .hugo-content, which is generated from the private source vault by
 prepare_hugo_content.py. This wrapper keeps that generated tree synchronized
 while hugo server is running, so changing publish flags takes effect without
-manually restarting the preprocessing step.
+manually restarting the preprocessing step. With a resume password, it also
+rebuilds encrypted resumes when their sources, templates, or assets change.
 """
 
 from __future__ import annotations
 
 import argparse
+import getpass
 import os
 import shutil
 import subprocess
@@ -30,6 +32,83 @@ CONTENT_EXTENSIONS = {
     ".svg",
     ".webp",
 }
+
+RESUME_SOURCES = ("content/.resume/resume-en.html", "content/.resume/resume-zh.html")
+
+
+def snapshot_resume_sources(root: Path) -> dict[str, tuple[int, int]]:
+    paths = [root / name for name in RESUME_SOURCES]
+    paths.extend(root / "scripts" / name for name in (
+        "build_resume.py", "staticrypt-resume-template.html", "resume-preview.js",
+    ))
+    for extension in ("yml", "yaml", "toml", "json"):
+        paths.extend(root.glob(f"hugo*.{extension}"))
+    for name in ("assets", "layouts", "themes", "config", "data", "i18n"):
+        paths.extend((root / name).rglob("*"))
+    snapshot = {}
+    for path in paths:
+        relative = path.relative_to(root)
+        if any(part.lower() in IGNORED_DIRS for part in relative.parts):
+            continue
+        try:
+            if path.is_file():
+                stat = path.stat()
+                snapshot[relative.as_posix()] = (stat.st_mtime_ns, stat.st_size)
+        except OSError:
+            continue
+    return snapshot
+
+
+def interactive_stdin() -> bool:
+    if sys.stdin is None or not sys.stdin.isatty():
+        return False
+    if os.name != "nt":
+        return True
+    # Windows reports NUL as a TTY; getpass would still wait for console input.
+    import ctypes
+    import msvcrt
+
+    handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+    mode = ctypes.c_ulong()
+    return bool(ctypes.windll.kernel32.GetConsoleMode(ctypes.c_void_p(handle), ctypes.byref(mode)))
+
+
+def resume_password(root: Path, args: argparse.Namespace) -> str | None:
+    if args.no_resume:
+        return None
+    if not all((root / name).is_file() for name in RESUME_SOURCES):
+        print("[serve] Private resume sources missing; automatic resume updates disabled.", flush=True)
+        return None
+    password = os.environ.get(args.resume_password_env)
+    if password is None and interactive_stdin():
+        try:
+            password = getpass.getpass("Resume password (Enter to skip automatic resume updates): ")
+        except EOFError:
+            password = None
+    if not password:
+        print(
+            f"[serve] No resume password; keeping existing encrypted pages. "
+            f"Set {args.resume_password_env} or restart in a terminal to enable automatic updates.",
+            flush=True,
+        )
+        return None
+    return password
+
+
+def prepare_resumes(root: Path, password: str) -> bool:
+    print("[serve] Rebuilding encrypted resumes...", flush=True)
+    environment = os.environ.copy()
+    environment["RESUME_PASSWORD"] = password
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts" / "build_resume.py"), "--preview"],
+        cwd=root, env=environment,
+    )
+    if result.returncode != 0:
+        print("[serve] Resume build failed; keeping the previous preview. Edit a resume input to retry.",
+              file=sys.stderr, flush=True)
+        return False
+    print("[serve] Encrypted resumes updated.", flush=True)
+    return True
 
 
 def snapshot_sources(root: Path) -> dict[str, tuple[int, int]]:
@@ -112,6 +191,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=0.75,
         help="Seconds to wait after the last edit before rebuilding (default: 0.75).",
     )
+    parser.add_argument(
+        "--no-resume", action="store_true",
+        help="Skip automatic encrypted resume builds and the password prompt",
+    )
+    parser.add_argument(
+        "--resume-password-env", default="RESUME_PASSWORD",
+        help="Environment variable containing the resume password (otherwise prompts once)",
+    )
     args, hugo_args = parser.parse_known_args(argv)
     if "--" in hugo_args:
         hugo_args.remove("--")
@@ -158,9 +245,6 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     root = Path(__file__).resolve().parents[1]
 
-    if not prepare_content(root):
-        return 1
-
     hugo_binary = os.environ.get("HUGO_BIN", "hugo")
     if shutil.which(hugo_binary) is None and not Path(hugo_binary).is_file():
         print(
@@ -170,6 +254,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
+    try:
+        password = resume_password(root, args)
+    except KeyboardInterrupt:
+        return 130
+    previous_snapshot = snapshot_sources(root)
+    resume_snapshot = snapshot_resume_sources(root) if password else {}
+    if not prepare_content(root):
+        return 1
+    if password:
+        prepare_resumes(root, password)
+
     generated_snapshot = snapshot_generated_tree(root)
     preview_version = str(time.time_ns())
     write_preview_version(root, preview_version)
@@ -177,12 +272,15 @@ def main(argv: list[str] | None = None) -> int:
     if hugo is None:
         return 1
 
-    previous_snapshot = snapshot_sources(root)
     pending_since: float | None = None
+    resume_pending_since: float | None = None
     print(
         "[serve] Watching content and publish-policy.yml; press Ctrl+C to stop.",
         flush=True,
     )
+    if password:
+        print("[serve] Watching resume sources, templates, and assets; password retained for this process only.",
+              flush=True)
 
     try:
         while hugo.poll() is None:
@@ -218,6 +316,18 @@ def main(argv: list[str] | None = None) -> int:
                     pending_since = time.monotonic()
                 else:
                     pending_since = None
+            if password:
+                current_resume_snapshot = snapshot_resume_sources(root)
+                if current_resume_snapshot != resume_snapshot:
+                    resume_snapshot = current_resume_snapshot
+                    resume_pending_since = time.monotonic()
+                elif resume_pending_since is not None and time.monotonic() - resume_pending_since >= args.debounce:
+                    snapshot_before_build = resume_snapshot
+                    prepare_resumes(root, password)
+                    resume_snapshot = snapshot_resume_sources(root)
+                    resume_pending_since = (
+                        time.monotonic() if resume_snapshot != snapshot_before_build else None
+                    )
             time.sleep(args.poll_interval)
     except KeyboardInterrupt:
         print("\n[serve] Stopping Hugo...", flush=True)
