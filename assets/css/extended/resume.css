@@ -327,10 +327,6 @@ body:has(.resume-paper) .logo {
     text-wrap: pretty;
 }
 
-.resume-page-break-before {
-    margin-top: 24px;
-}
-
 .resume-detail-list,
 .resume-entry-compact .resume-detail-list {
     display: block;
@@ -577,12 +573,19 @@ body:has(.resume-paper) .logo {
         line-height: 1.24;
     }
 
+    .resume-entry {
+        break-inside: auto;
+    }
+
     .resume-section-heading,
-    .resume-entry-header {
+    .resume-entry-header,
+    .resume-entry-scope {
         break-after: avoid;
     }
 
-    .resume-highlights li {
+    .resume-highlights li,
+    .resume-skill-grid article,
+    .resume-education-entry {
         break-inside: avoid;
     }
 
@@ -701,10 +704,6 @@ body:has(.resume-paper) .logo {
         margin-top: 2pt;
     }
 
-    .resume-page-break-before {
-        break-before: page;
-        page-break-before: always;
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {
