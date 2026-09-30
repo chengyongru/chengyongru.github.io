@@ -67,7 +67,7 @@ jobs:
       - name: Build Hugo site
         run: |
           hugo --gc --minify \
-            --baseURL "${{ steps.pages.outputs.base_url }}/" \
+            --baseURL "https://chengyongru.com/" \
             --cacheDir "${RUNNER_TEMP}/hugo-cache"
 
       - name: Upload site artifact

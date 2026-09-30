@@ -1,4 +1,4 @@
-baseURL: "https://chengyongru.github.io/"
+baseURL: "https://chengyongru.com/"
 languageCode: "en-us"
 defaultContentLanguage: "en"
 title: "CYR'ML"
@@ -33,6 +33,7 @@ params:
   description: "Notes on AI agents, machine learning, security, reverse engineering, and debugging."
   keywords: ["AI Agent", "Machine Learning", "Security", "Reverse Engineering", "Debugging"]
   author: "chengyongru"
+  images: ["https://chengyongru.com/social-card.png"]
   DateFormat: "January 2, 2006"
   defaultTheme: "auto"
   disableThemeToggle: false
