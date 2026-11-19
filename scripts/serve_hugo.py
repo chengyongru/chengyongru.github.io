@@ -33,7 +33,7 @@ CONTENT_EXTENSIONS = {
     ".webp",
 }
 
-RESUME_SOURCES = ("content/.resume/resume-en.html", "content/.resume/resume-zh.html")
+RESUME_SOURCES = ("content/.resume/resume-agent.html", "content/.resume/resume-algo.html")
 
 
 def snapshot_resume_sources(root: Path) -> dict[str, tuple[int, int]]:

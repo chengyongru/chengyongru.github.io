@@ -3,14 +3,22 @@
 
 <nav class="resume-toolbar" aria-label="Resume actions">
   {{- with .Params.alternateResumeURL }}
-  <a class="resume-language" href="{{ . | relURL }}" aria-label="Open the {{ $.Params.alternateResumeLabel }} resume">{{ $.Params.alternateResumeLabel }}</a>
+  <a class="resume-language" href="{{ . | relURL }}" aria-label="切换到{{ $.Params.alternateResumeLabel }}">{{ $.Params.alternateResumeLabel }}</a>
   {{- end }}
-  <button class="resume-print" id="resume-print" type="button" aria-label="Export resume as PDF">PDF</button>
+  <button class="resume-print" id="resume-print" type="button" aria-label="导出 PDF 简历">
+    <svg class="resume-print-icon" width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M8 2.5v7.25m0 0 2.75-2.75M8 9.75 5.25 7M3 11.75v.75A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>导出</span>
+  </button>
 </nav>
 
 <article class="resume-paper{{ if eq .Params.resumeLanguage "en" }} resume-paper-en{{ else }} resume-paper-zh{{ end }}" id="main-content" lang="{{ .Params.resumeLanguage | default "en" }}">
   <header class="resume-heading">
     <h1>{{ .Title }}</h1>
+    {{- with .Params.resumeSubtitle }}
+    <p class="resume-subtitle">{{ . }}</p>
+    {{- end }}
     <div class="resume-contact" aria-label="Contact links">
       <a href="mailto:chengyongru.ai@gmail.com">chengyongru.ai@gmail.com</a>
       {{ with .Params.resumePhoneLabel }}<span class="resume-contact-item"><span class="resume-contact-separator" aria-hidden="true">|</span><a href="tel:{{ $.Params.resumePhoneHref }}">{{ . }}</a></span>{{ end }}
@@ -26,6 +34,20 @@
 </article>
 
 <script>
-  document.getElementById("resume-print").addEventListener("click", () => window.print());
+  (() => {
+    const printButton = document.getElementById("resume-print");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    printButton.addEventListener("click", () => {
+      if (reducedMotion) {
+        window.print();
+        return;
+      }
+      printButton.classList.add("is-lifting");
+      window.setTimeout(() => {
+        window.print();
+        printButton.classList.remove("is-lifting");
+      }, 120);
+    });
+  })();
 </script>
 {{- end }}

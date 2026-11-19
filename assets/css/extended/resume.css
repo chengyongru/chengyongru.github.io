@@ -53,7 +53,7 @@ body:has(.resume-paper) .logo {
     --resume-muted: #242424;
     --resume-line: #777;
     --resume-font: "Charter", Georgia, "Times New Roman", serif;
-    --resume-zh-font: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+    --resume-zh-font: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", "WenQuanYi Zen Hei", sans-serif;
 
     min-width: 0;
     min-height: 1120px;
@@ -71,6 +71,84 @@ body:has(.resume-paper) .logo {
 
 .resume-paper-zh {
     font-family: var(--resume-zh-font);
+    -webkit-font-smoothing: antialiased;
+}
+
+.resume-paper-zh .resume-heading h1 {
+    font-size: clamp(1.95rem, 4.2vw, 2.35rem);
+    letter-spacing: 0.08em;
+}
+
+.resume-subtitle {
+    margin: 6px 0 0;
+    color: #374151;
+    font-size: 0.88rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+}
+
+.resume-paper-zh .resume-section-heading h2 {
+    font-weight: 700;
+    font-size: 0.98rem;
+    letter-spacing: 0.06em;
+    border-bottom: 1.5px solid #1f2937;
+    padding-bottom: 3px;
+}
+
+.resume-paper-zh .resume-entry-scope {
+    font-style: normal;
+    color: #374151;
+}
+
+.resume-paper-zh .resume-skill-grid h3 {
+    margin-inline-end: 0;
+}
+
+.resume-paper-zh .resume-skill-grid h3::after {
+    content: "：";
+}
+
+.resume-paper-zh .resume-highlights a,
+.resume-paper-zh .resume-entry-scope a {
+    text-decoration-color: rgb(17 24 39 / 30%);
+    text-underline-offset: 0.2em;
+}
+
+.resume-paper-zh .resume-highlights a:hover,
+.resume-paper-zh .resume-entry-scope a:hover {
+    text-decoration-color: currentColor;
+}
+
+@media screen and (min-width: 701px) {
+    .resume-paper-zh .resume-section,
+    .resume-paper-zh .resume-section + .resume-section {
+        margin-top: 16px;
+    }
+
+    .resume-paper-zh .resume-entry + .resume-entry {
+        margin-top: 12px;
+    }
+
+    .resume-paper-zh .resume-entry-scope,
+    .resume-paper-zh .resume-highlights,
+    .resume-paper-zh .resume-skill-grid h3,
+    .resume-paper-zh .resume-skill-grid p {
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    .resume-paper-zh .resume-highlights {
+        margin-top: 5px;
+    }
+
+    .resume-paper-zh .resume-highlights li + li {
+        margin-top: 3.5px;
+    }
+
+    .resume-paper-zh .resume-skill-grid {
+        gap: 4px;
+    }
 }
 
 .resume-paper a {
@@ -111,41 +189,64 @@ body:has(.resume-paper) .logo {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 10px;
+    margin-bottom: 14px;
 }
 
 .resume-language,
 .resume-print {
     display: inline-flex;
-    min-width: 44px;
-    min-height: 40px;
+    min-height: 32px;
     align-items: center;
     justify-content: center;
-    padding: 0 12px;
+    gap: 5px;
+    padding: 0 13px;
     color: var(--primary);
     background: var(--entry);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
     cursor: pointer;
-    font-family: var(--resume-ui-font, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    font-family: var(--resume-zh-font);
     font-size: 0.78rem;
-    font-weight: 600;
+    font-weight: 500;
+    letter-spacing: 0.04em;
     line-height: 1;
     text-decoration: none;
-    transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+    transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 160ms ease,
+        color 160ms ease,
+        background-color 160ms ease;
+}
+
+.resume-print {
+    color: var(--theme);
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.resume-print-icon {
+    flex: none;
+    opacity: 0.9;
 }
 
 .resume-language:hover,
 .resume-print:hover {
-    background: var(--tertiary);
-    border-color: var(--secondary);
+    transform: translateY(-1.5px);
+    box-shadow: 0 6px 16px rgb(15 23 42 / 11%);
     text-decoration: none;
 }
 
+.resume-language:hover {
+    border-color: var(--secondary);
+}
+
 .resume-language:active,
-.resume-print:active {
-    transform: translateY(1px);
+.resume-print:active,
+.resume-print.is-lifting {
+    transform: translateY(-3px);
+    box-shadow: 0 9px 20px rgb(15 23 42 / 16%);
 }
 
 .resume-heading {
@@ -673,14 +774,28 @@ body:has(.resume-paper) .logo {
         margin-top: 0.9pt;
     }
 
+    .resume-paper-zh .resume-heading h1 {
+        font-size: 20pt;
+    }
+
+    .resume-subtitle {
+        margin-top: 2.5pt;
+        font-size: 8.6pt;
+    }
+
     .resume-paper-zh .resume-section,
     .resume-paper-zh .resume-section + .resume-section {
-        margin-top: 11pt;
+        margin-top: 8.5pt;
     }
 
     .resume-paper-zh .resume-section-heading,
     .resume-paper-zh .resume-section-heading h2 {
-        margin-bottom: 5.5pt;
+        margin-bottom: 4.5pt;
+    }
+
+    .resume-paper-zh .resume-section-heading h2 {
+        font-size: 9.6pt;
+        padding-bottom: 1.5pt;
     }
 
     .resume-paper-zh .resume-entry-scope,
@@ -689,25 +804,28 @@ body:has(.resume-paper) .logo {
     .resume-paper-zh .resume-entry-compact .resume-detail-list dd,
     .resume-paper-zh .resume-skill-grid h3,
     .resume-paper-zh .resume-skill-grid p {
-        line-height: 1.5;
+        font-size: 8.8pt;
+        line-height: 1.4;
     }
 
     .resume-paper-zh .resume-entry + .resume-entry {
-        margin-top: 8pt;
+        margin-top: 6.5pt;
     }
 
     .resume-paper-zh .resume-highlights {
-        margin-top: 3pt;
+        margin-top: 2.5pt;
     }
 
     .resume-paper-zh .resume-highlights li + li {
-        margin-top: 2pt;
+        margin-top: 1.8pt;
     }
 
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .resume-skip-link {
+    .resume-skip-link,
+    .resume-language,
+    .resume-print {
         transition: none;
     }
 }

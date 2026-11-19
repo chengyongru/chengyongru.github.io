@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and encrypt the private English and Chinese resumes."""
+"""Build and encrypt the private Agent and Algorithm Chinese resumes."""
 
 from __future__ import annotations
 
@@ -21,15 +21,15 @@ RESUME_SALT = "9b3c805db46d1ae1a7c9eea5b3d3156b"
 
 
 RESUME_VARIANTS = {
-    "en": {
-        "staged": Path("resume.md"),
-        "rendered": Path("resume/en/index.html"),
-        "destination": Path("static/resume/en/index.html"),
-    },
-    "zh": {
-        "staged": Path("resume-zh.md"),
+    "agent": {
+        "staged": Path("resume-agent.md"),
         "rendered": Path("resume/index.html"),
         "destination": Path("static/resume/index.html"),
+    },
+    "algo": {
+        "staged": Path("resume-algo.md"),
+        "rendered": Path("resume/algo/index.html"),
+        "destination": Path("static/resume/algo/index.html"),
     },
 }
 
@@ -75,8 +75,8 @@ def read_password(environment_name: str) -> str:
 
 def stage_resumes(content_dir: Path, sources: dict[str, Path]) -> None:
     """Keep plaintext sources outside the running server's content tree."""
-    for language, source in sources.items():
-        staged = content_dir / RESUME_VARIANTS[language]["staged"]
+    for variant_name, source in sources.items():
+        staged = content_dir / RESUME_VARIANTS[variant_name]["staged"]
         staged.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, staged)
 
@@ -209,7 +209,7 @@ def build_resumes(
             if preview else ""
         )
         version = uuid.uuid4().hex
-        for language, variant in RESUME_VARIANTS.items():
+        for variant_name, variant in RESUME_VARIANTS.items():
             rendered_resume = rendered_site / variant["rendered"]
             if not rendered_resume.is_file():
                 raise FileNotFoundError(f"Hugo did not render {rendered_resume}")
@@ -217,7 +217,7 @@ def build_resumes(
             if preview:
                 add_preview_refresh(rendered_resume, preview_script, version)
             encrypted_resume = encrypt_resume(
-                root, rendered_resume, temporary_root / "encrypted" / language,
+                root, rendered_resume, temporary_root / "encrypted" / variant_name,
                 template, password,
             )
             if preview:
@@ -226,7 +226,7 @@ def build_resumes(
             staged_output.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(encrypted_resume, staged_output)
 
-        # Do not touch served assets or pages until both languages are encrypted.
+        # Do not touch served assets or pages until both variants are encrypted.
         for staged_output in sorted(
             static_output.rglob("*"),
             key=lambda path: (path.relative_to(static_output).parts[0] == "resume", path.as_posix()),
@@ -239,16 +239,16 @@ def build_resumes(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--source-en",
+        "--source-agent",
         type=Path,
-        default=Path("content/.resume/resume-en.html"),
-        help="Private English HTML source",
+        default=Path("content/.resume/resume-agent.html"),
+        help="Private Agent Chinese HTML source",
     )
     parser.add_argument(
-        "--source-zh",
+        "--source-algo",
         type=Path,
-        default=Path("content/.resume/resume-zh.html"),
-        help="Private Chinese HTML source",
+        default=Path("content/.resume/resume-algo.html"),
+        help="Private Algorithm Chinese HTML source",
     )
     parser.add_argument(
         "--password-env",
@@ -266,8 +266,8 @@ def main() -> int:
     args = parse_args()
     root = Path(__file__).resolve().parents[1]
     sources = {
-        "en": args.source_en if args.source_en.is_absolute() else root / args.source_en,
-        "zh": args.source_zh if args.source_zh.is_absolute() else root / args.source_zh,
+        "agent": args.source_agent if args.source_agent.is_absolute() else root / args.source_agent,
+        "algo": args.source_algo if args.source_algo.is_absolute() else root / args.source_algo,
     }
     for source in sources.values():
         if not source.is_file():

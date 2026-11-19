@@ -123,7 +123,10 @@ class ResumePreviewTests(unittest.TestCase):
         self.write("static/resume/index.html", "old encrypted")
         self.write("static/resume-assets/stylesheet.css", "old asset")
         self.write("scripts/resume-preview.js", "/* test preview */")
-        return {lang: self.root / f"content/.resume/resume-{lang}.html" for lang in ("en", "zh")}
+        return {
+            variant: self.root / f"content/.resume/resume-{variant}.html"
+            for variant in ("agent", "algo")
+        }
 
     def test_build_isolates_plaintext_and_publishes_after_both_encryptions(self):
         sources = self.prepare_build()
@@ -138,9 +141,9 @@ class ResumePreviewTests(unittest.TestCase):
 
     def test_failed_second_encryption_keeps_all_existing_outputs(self):
         sources = self.prepare_build()
-        self.write("static/resume/en/index.html", "old English")
+        self.write("static/resume/algo/index.html", "old Algorithm")
         def fail_second(*args):
-            if args[2].name == "zh":
+            if args[2].name == "algo":
                 raise RuntimeError("encryption failed")
             return self.fake_encrypt(*args)
         with patch.object(build_resume, "run", side_effect=self.fake_hugo), \
@@ -148,7 +151,7 @@ class ResumePreviewTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "encryption failed"):
                 build_resume.build_resumes(self.root, sources, "test-only")
         self.assertEqual((self.root / "static/resume/index.html").read_text(), "old encrypted")
-        self.assertEqual((self.root / "static/resume/en/index.html").read_text(), "old English")
+        self.assertEqual((self.root / "static/resume/algo/index.html").read_text(), "old Algorithm")
         self.assertEqual((self.root / "static/resume-assets/stylesheet.css").read_text(), "old asset")
 
 
